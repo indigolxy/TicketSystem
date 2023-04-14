@@ -3,4 +3,5 @@ project(TicketSystem)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(code src/bpt/bpt.cpp)
+add_executable(code src/bpt/main.cpp
+        src/bpt/bpt.cpp)
