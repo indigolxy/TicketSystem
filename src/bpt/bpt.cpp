@@ -1,4 +1,5 @@
 #include "bpt.h"
+#include <iostream>
 
 template <typename keyType, typename valueType, int t, int l>
 BPlusTree<keyType, valueType, t, l>::BPlusTree(const std::string &file_name) {
@@ -96,15 +97,15 @@ std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l>::InsertIntoLeafNode(
 template <typename keyType, typename valueType, int t, int l>
 std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l>::SplitLeafNode(LeafNode target_node, Ptr target_pos) {
     LeafNode tmp;
-    tmp.key_num = l - 1;
-    for (int i = 1; i <= l - 1; ++i) {
-        tmp.keys[i] = target_node.keys[i + l];
-        tmp.values[i] = target_node.values[i + l];
+    tmp.key_num = l;
+    for (int i = 1; i <= l; ++i) {
+        tmp.keys[i] = target_node.keys[i + l - 1];
+        tmp.values[i] = target_node.values[i + l - 1];
     }
     tmp.next_leaf = target_node.next_leaf;
     Ptr tmp_pos = WriteLeafNode(tmp, -1);
 
-    target_node.key_num = l;
+    target_node.key_num = l - 1;
     target_node.next_leaf = tmp_pos;
     WriteLeafNode(target_node, target_pos);
     return {tmp.keys[1], tmp_pos};
@@ -128,7 +129,7 @@ std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l>::InsertIntoNode(node
     if (res.second == -1) return res;
 
     // 在target_node中加入新的key和son
-    for (int i = target_node.key_num; i > tmp.first; ++i) {
+    for (int i = target_node.key_num; i > tmp.first; --i) {
         target_node.keys[i + 1] = target_node.keys[i];
         target_node.sons[i + 1] = target_node.sons[i];
     }
@@ -177,6 +178,7 @@ void BPlusTree<keyType, valueType, t, l>::insert(const keyType &key, const value
     if (root == -1) {
         LeafNode tmp;
         tmp.keys[1] = key;
+        tmp.values[1] = value;
         tmp.key_num = 1;
         WriteLeafNode(tmp, 0);
         root = 0;
@@ -205,5 +207,50 @@ void BPlusTree<keyType, valueType, t, l>::insert(const keyType &key, const value
     InsertIntoNode(target, root, key, value);
 }
 
-template class BPlusTree<std::pair<std::string, int>, int, 3, 5>;
-template class BPlusTree<std::string, int, 3, 5>;
+template <typename keyType, typename valueType, int t, int l>
+void BPlusTree<keyType, valueType, t, l>::PrintLeafNode(Ptr pos) {
+    LeafNode tmp;
+    ReadLeafNode(tmp, pos);
+    for (int i = 1; i <= tmp.key_num; ++i) {
+        std::cout << " (" << tmp.keys[i] << ", " << tmp.values[i] << ") ";
+    }
+    std::cout << std::endl;
+}
+
+template <typename keyType, typename valueType, int t, int l>
+void BPlusTree<keyType, valueType, t, l>::PrintNode(Ptr pos) {
+    node tmp;
+    ReadNode(tmp, pos);
+    for (int i = 1; i <= tmp.key_num; ++i) {
+        std::cout << " " << tmp.keys[i] << " ";
+    }
+    std::cout << std::endl;
+    if (tmp.son_is_leaf) {
+        for (int i = 0; i <= tmp.key_num; ++i) {
+            PrintLeafNode(tmp.sons[i]);
+        }
+    }
+    else {
+        for (int i = 0; i <= tmp.key_num; ++i) {
+            PrintNode(tmp.sons[i]);
+        }
+    }
+}
+
+template <typename keyType, typename valueType, int t, int l>
+void BPlusTree<keyType, valueType, t, l>::print() {
+    if (root == -1) {
+        printf("空树\n");
+        return;
+    }
+    if (root_is_leaf) {
+        printf("只有根");
+        PrintLeafNode(root);
+        return;
+    }
+    PrintNode(root);
+}
+
+//template class BPlusTree<std::pair<String, int>, int, 3, 5>;
+template class BPlusTree<String, int, 2, 2>;
+template class BPlusTree<int, int, 2, 2>;

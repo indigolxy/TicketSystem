@@ -4,8 +4,35 @@
 
 #include <fstream>
 #include "../utilis/vector.hpp"
+#include <string>
 
 using Ptr = int;
+
+constexpr int MAXBits = 64;
+class String {
+    char data[MAXBits] = {0};
+
+public:
+    String() {}
+    String(const std::string &s) {
+        for (int i = 0; i < s.length(); ++i) {
+            data[i] = s[i];
+        }
+    }
+
+    bool operator==(const String &other) const {
+        return (strcmp(data, other.data) == 0);
+    }
+
+    bool operator<(const String &other) const {
+        return (strcmp(data, other.data) < 0);
+    }
+
+    friend std::ostream &operator<<(std::ostream &os, const String &obj) {
+        os << obj.data;
+        return os;
+    }
+};
 
 template <typename keyType, typename valueType, int t, int l>
 class BPlusTree {
@@ -45,6 +72,9 @@ private:
     // todo 调用前可能要考虑去缓存找一下
     void ReadNode(node &tmp, const Ptr &pos);
     void ReadLeafNode(LeafNode &tmp, const Ptr &pos);
+
+    void PrintLeafNode(Ptr pos);
+    void PrintNode(Ptr pos);
 
     /*
      * 二分查找keys中key的位置
@@ -102,6 +132,12 @@ public:
     void remove(const keyType &key, const valueType &value);
 
     sjtu::vector<valueType> find(const keyType &key);
+
+    /*
+     * 用于调试，输出整颗树
+     * 每个结点一行，输出keys和sons or values
+     */
+    void print();
 };
 
 #endif //TICKETSYSTEM_BPT_H
