@@ -4,6 +4,7 @@
 #include "exceptions.hpp"
 
 #include <climits>
+#include <iostream>
 #include <cstddef>
 
 namespace sjtu {
@@ -439,6 +440,15 @@ public:
         _data = new_data;
     }
 
+    void print() {
+        iterator p = begin();
+        while (p != end()) {
+            std::cout << *p.iter << ' ';
+            ++p;
+        }
+        std::cout << std::endl;
+    }
+
 private:
     T *_data;
     size_t _size;
@@ -448,5 +458,7 @@ private:
 };
 
 }
+
+template class sjtu::vector<int>;
 
 #endif
