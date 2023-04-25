@@ -642,14 +642,14 @@ private:
 
     /*
      * pos为需要删除的叶子节点对应的读写位置
-     * p为上方出现过该key的node的读写位置（若无，则为-1）
-     * 删除键值对，如有必要(p != -1)，修改p位置的节点的keys为删除本key后接着的下一个key
+     * 删除键值对，如果删的是第一个（上方有相同key）再回溯时需要更新对应key为删除后节点的第一个key
+     * 故返回的最后一个参数为keys[1]
      * 如果不需要借儿子或并块，直接写回文件并返回{false, ^}
      * 否则返回{true, LeafNode}即已经删掉该键值对的叶节点
      */
-    std::pair<bool, LeafNode> EraseFromLeafNode(Ptr pos, Ptr p, const keyType &key);
+    std::pair<bool, std::pair<LeafNode, keyType>> EraseFromLeafNode(Ptr pos, const keyType &key);
 
-    std::pair<bool, node> EraseFromNode(Ptr pos, Ptr p, const keyType &key);
+    std::pair<bool, std::pair<node, keyType>> EraseFromNode(Ptr pos, const keyType &key);
 
     /*
      * 尝试对target_node借儿子 (如果没有哥哥or弟弟，传入Ptr为-1)
@@ -665,6 +665,7 @@ private:
     /*
      * sign==1表示brother是弟弟（优先弟弟），sign==2表示brother是哥哥
      * 均向左边并块，故不用向上修改key值。右边的块进垃圾桶
+     * 记得更新next_leaf
      */
     void MergeLeafNode(Ptr pos, LeafNode target_node, Ptr brother, int sign);
 
@@ -932,6 +933,13 @@ void BPlusTree<keyType, valueType, t, l>::PrintLeafNode(Ptr pos) {
     for (int i = 1; i <= tmp.key_num; ++i) {
         std::cout << " (" << tmp.keys[i] << ", " << tmp.values[i] << ") ";
     }
+    if (tmp.next_leaf > 0) {
+        std::cout << " --> ";
+        ReadLeafNode(tmp, tmp.next_leaf);
+        for (int i = 1; i <= tmp.key_num; ++i) {
+            std::cout << " (" << tmp.keys[i] << ", " << tmp.values[i] << ") ";
+        }
+    }
     std::cout << std::endl;
 }
 
@@ -1040,12 +1048,12 @@ sjtu::vector<valueType> BPlusTree<keyType, valueType, t, l>::find(const keyType 
 }
 
 template <typename keyType, typename valueType, int t, int l>
-std::pair<bool, typename BPlusTree<keyType, valueType, t, l>::LeafNode> BPlusTree<keyType, valueType, t, l>::EraseFromLeafNode(Ptr pos, Ptr p, const keyType &key) {
+std::pair<bool, std::pair<typename BPlusTree<keyType, valueType, t, l>::LeafNode, keyType>> BPlusTree<keyType, valueType, t, l>::EraseFromLeafNode(Ptr pos, const keyType &key) {
     LeafNode tmp;
     ReadLeafNode(tmp, pos);
     std::pair<int, bool> res = FindKey(tmp.keys, tmp.key_num, key);
     // 找不到：什么都不做
-    if (!res.second) return {false, tmp};
+    if (!res.second) return {false, {tmp, keyType()}};
     // 找到了：删掉
     for (int i = res.first; i < tmp.key_num; ++i) {
         tmp.keys[i] = tmp.keys[i + 1];
@@ -1053,39 +1061,36 @@ std::pair<bool, typename BPlusTree<keyType, valueType, t, l>::LeafNode> BPlusTre
     }
     --tmp.key_num;
 
-    // 如果删的是第一个，且不是第一个叶子节点（即p != -1)：改上方key索引
-    if (p != -1) {
-        node guide;
-        ReadNode(guide, p);
-        int index = FindKey(guide.keys, guide.key_num, key).first;
-        guide.keys[index] = tmp.keys[1];
-        WriteNode(guide, p);
-    }
-
     // 如果key_num符合要求，不需要进一步处理，可以直接写回文件
     if (tmp.key_num > l - 1) {
         WriteLeafNode(tmp, pos);
-        return {false, tmp};
+        return {false, {tmp, tmp.keys[1]}};
     }
     // 否则后续需要借儿子或者并块，返回true（后续再写回文件）
-    return {true, tmp};
+    return {true, {tmp, tmp.keys[1]}};
 }
 
 template <typename keyType, typename valueType, int t, int l>
-std::pair<bool, typename BPlusTree<keyType, valueType, t, l>::node> BPlusTree<keyType, valueType, t, l>::EraseFromNode(Ptr pos, Ptr p, const keyType &key) {
+std::pair<bool, std::pair<typename BPlusTree<keyType, valueType, t, l>::node, keyType>> BPlusTree<keyType, valueType, t, l>::EraseFromNode(Ptr pos, const keyType &key) {
     node tmp;
     ReadNode(tmp, pos);
     std::pair<int, bool> find_res = FindKey(tmp.keys, tmp.key_num, key);
-    p = (find_res.second) ? pos : -1;
     // ! find_res.first可能为0！elder也可能为0!
     Ptr next = tmp.sons[find_res.first];
     Ptr elder = (find_res.first > 0) ? tmp.sons[find_res.first - 1] : -1;
     Ptr younger = (find_res.first < tmp.key_num) ? tmp.sons[find_res.first + 1] : -1;
     int delete_index = 0;
+    keyType res_key;
     if (tmp.son_is_leaf) {
-        std::pair<bool, LeafNode> res = EraseFromLeafNode(next, p, key);
-        if (!res.first) return {false, tmp};
-        std::pair<int, keyType> res2 = BorrowLeafNode(next, res.second, elder, younger);
+        std::pair<bool, std::pair<LeafNode, keyType>> res = EraseFromLeafNode(next, key);
+        if (find_res.second) tmp.keys[find_res.first] = res.second.second;
+        if (!res.first) {
+            if (find_res.second) WriteNode(tmp, pos);
+            return {false, {tmp, res.second.second}};
+        }
+        res_key = res.second.second;
+
+        std::pair<int, keyType> res2 = BorrowLeafNode(next, res.second.first, elder, younger);
         if (res2.first == 1) {
             // ! 如果是向哥哥借儿子的，find_res.first一定!=0
             tmp.keys[find_res.first] = res2.second;
@@ -1095,19 +1100,25 @@ std::pair<bool, typename BPlusTree<keyType, valueType, t, l>::node> BPlusTree<ke
         }
         else {
             if (younger != -1) { // 和弟弟并块
-                MergeLeafNode(next, res.second, younger, 1);
+                MergeLeafNode(next, res.second.first, younger, 1);
                 delete_index = find_res.first + 1;
             }
             else {
-                MergeLeafNode(next, res.second, elder, 2);
+                MergeLeafNode(next, res.second.first, elder, 2);
                 delete_index = find_res.first;
             }
         }
     }
     else {
-        std::pair<bool, node> res = EraseFromNode(next, p, key);
-        if (!res.first) return {false, tmp};
-        std::pair<int, keyType> res2 = BorrowNode(next, res.second, elder, younger, tmp.keys[find_res.first], tmp.keys[find_res.first + 1]);
+        std::pair<bool, std::pair<node, keyType>> res = EraseFromNode(next, key);
+        if (find_res.second) tmp.keys[find_res.first] = res.second.second;
+        if (!res.first) {
+            if (find_res.second) WriteNode(tmp, pos);
+            return {false, {tmp, res.second.second}};
+        }
+        res_key = res.second.second;
+
+        std::pair<int, keyType> res2 = BorrowNode(next, res.second.first, elder, younger, tmp.keys[find_res.first], tmp.keys[find_res.first + 1]);
         if (res2.first == 1) {
             tmp.keys[find_res.first] = res2.second;
         }
@@ -1117,11 +1128,11 @@ std::pair<bool, typename BPlusTree<keyType, valueType, t, l>::node> BPlusTree<ke
         else {
             if (younger != -1) { // 和弟弟并块
                 delete_index = find_res.first + 1;
-                MergeNode(next, res.second, younger, 1, tmp.keys[delete_index]);
+                MergeNode(next, res.second.first, younger, 1, tmp.keys[delete_index]);
             }
             else {
                 delete_index = find_res.first;
-                MergeNode(next, res.second, elder, 2, tmp.keys[delete_index]);
+                MergeNode(next, res.second.first, elder, 2, tmp.keys[delete_index]);
             }
         }
     }
@@ -1132,7 +1143,7 @@ std::pair<bool, typename BPlusTree<keyType, valueType, t, l>::node> BPlusTree<ke
         if (delete_index == find_res.first + 1) root = next;
         else root = elder;
         if (tmp.son_is_leaf) root_is_leaf = true;
-        return {false, tmp};
+        return {false, {tmp, res_key}};
     }
     if (delete_index > 0) {
         --tmp.key_num;
@@ -1143,13 +1154,13 @@ std::pair<bool, typename BPlusTree<keyType, valueType, t, l>::node> BPlusTree<ke
     }
     if (tmp.key_num > t - 1) {
         WriteNode(tmp, pos);
-        return {false, tmp};
+        return {false, {tmp, res_key}};
     }
     if (pos == root) {
         WriteNode(tmp, pos);
-        return {true, tmp};
+        return {true, {tmp, res_key}};
     }
-    return {true, tmp};
+    return {true, {tmp, res_key}};
 }
 
 template <typename keyType, typename valueType, int t, int l>
@@ -1171,7 +1182,7 @@ std::pair<int, keyType> BPlusTree<keyType, valueType, t, l>::BorrowLeafNode(Ptr 
             return {1, target_node.keys[1]};
         }
     }
-    else if (younger != -1) {
+    if (younger != -1) {
         LeafNode tmp;
         ReadLeafNode(tmp, younger);
         if (tmp.key_num > l) {
@@ -1212,7 +1223,7 @@ std::pair<int, keyType> BPlusTree<keyType, valueType, t, l>::BorrowNode(Ptr pos,
             return {1, tmp.keys[tmp.key_num + 1]};
         }
     }
-    else if (younger != -1) {
+    if (younger != -1) {
         node tmp;
         ReadNode(tmp, younger);
         if (tmp.key_num > t) {
@@ -1308,9 +1319,10 @@ void BPlusTree<keyType, valueType, t, l>::remove(const keyType &key) {
         WriteLeafNode(tmp, root);
         return;
     }
-    EraseFromNode(root, -1, key);
+    EraseFromNode(root, key);
 }
 
+template class BPlusTree<MyPair, int, 2, 2>;
 template class BPlusTree<MyPair, int, 27, 27>;
 //template class BPlusTree<String, int, 2, 2>;
 //template class BPlusTree<int, int, 2, 2>;
@@ -1353,7 +1365,7 @@ int main() {
     std::string instruction;
     std::string key;
     int value;
-    while (n--) {
+    for (int i = 1; i <= n; ++i) {
         std::cin >> instruction;
         std::cin >> key;
         if (instruction == "insert") {
@@ -1374,6 +1386,8 @@ int main() {
                 printf("\n");
             }
         }
+//        std::cout << i << std::endl;
+//        b.print();
     }
 
     return 0;

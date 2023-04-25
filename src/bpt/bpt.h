@@ -162,14 +162,14 @@ private:
 
     /*
      * pos为需要删除的叶子节点对应的读写位置
-     * p为上方出现过该key的node的读写位置（若无，则为-1）
-     * 删除键值对，如有必要(p != -1)，修改p位置的节点的keys为删除本key后接着的下一个key
+     * 删除键值对，如果删的是第一个（上方有相同key）再回溯时需要更新对应key为删除后节点的第一个key
+     * 故返回的最后一个参数为keys[1]
      * 如果不需要借儿子或并块，直接写回文件并返回{false, ^}
      * 否则返回{true, LeafNode}即已经删掉该键值对的叶节点
      */
-    std::pair<bool, LeafNode> EraseFromLeafNode(Ptr pos, Ptr p, const keyType &key);
+    std::pair<bool, std::pair<LeafNode, keyType>> EraseFromLeafNode(Ptr pos, const keyType &key);
 
-    std::pair<bool, node> EraseFromNode(Ptr pos, Ptr p, const keyType &key);
+    std::pair<bool, std::pair<node, keyType>> EraseFromNode(Ptr pos, const keyType &key);
 
     /*
      * 尝试对target_node借儿子 (如果没有哥哥or弟弟，传入Ptr为-1)
@@ -185,6 +185,7 @@ private:
     /*
      * sign==1表示brother是弟弟（优先弟弟），sign==2表示brother是哥哥
      * 均向左边并块，故不用向上修改key值。右边的块进垃圾桶
+     * 记得更新next_leaf
      */
     void MergeLeafNode(Ptr pos, LeafNode target_node, Ptr brother, int sign);
 

@@ -38,7 +38,7 @@ int main() {
     std::string instruction;
     std::string key;
     int value;
-    while (n--) {
+    for (int i = 1; i <= n; ++i) {
         std::cin >> instruction;
         std::cin >> key;
         if (instruction == "insert") {
@@ -58,8 +58,9 @@ int main() {
                 }
                 printf("\n");
             }
-            b.print();
         }
+//        std::cout << i << std::endl;
+//        b.print();
     }
 
     return 0;
