@@ -5,6 +5,7 @@
 #include <fstream>
 #include "../utilis/vector.hpp"
 #include <string>
+#include <iostream>
 
 using Ptr = int;
 
@@ -25,6 +26,9 @@ public:
     bool operator<(const String &other) const {
         return (strcmp(data, other.data) < 0);
     }
+    bool operator>(const String &other) const {
+        return (strcmp(data, other.data) > 0);
+    }
     friend std::ostream &operator<<(std::ostream &os, const String &obj) {
         os << obj.data;
         return os;
@@ -32,11 +36,11 @@ public:
 };
 
 struct MyPair {
-    int k;
+    String k;
     int v;
 public:
-    MyPair(int key, int value) : k(key), v(value) {}
-    MyPair() : k(0), v(0) {}
+    MyPair(const String &key, int value) : k(key), v(value) {}
+    MyPair() : k(), v(0) {}
 
     bool operator==(const MyPair &other) const {
         return k == other.k && v == other.v;
@@ -176,7 +180,7 @@ private:
      */
     std::pair<int, keyType> BorrowLeafNode(Ptr pos, LeafNode target_node, Ptr elder, Ptr younger);
 
-    std::pair<int, keyType> BorrowNode(Ptr pos, node target_node, Ptr elder, Ptr younger, const keyType &fa);
+    std::pair<int, keyType> BorrowNode(Ptr pos, node target_node, Ptr elder, Ptr younger, const keyType &left_fa, const keyType &right_fa);
 
     /*
      * sign==1表示brother是弟弟（优先弟弟），sign==2表示brother是哥哥

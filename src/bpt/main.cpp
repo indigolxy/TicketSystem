@@ -1,57 +1,66 @@
 #include "bpt.h"
-#include <random>
 
 bool comp(const MyPair &a, const MyPair &b) {
     return a.k < b.k;
 }
 
 int main() {
-    std::default_random_engine e;
-    std::uniform_int_distribution<int> u(1, 1e5);
-    e.seed(time(0));
-
+    /*
     BPlusTree<int, int, 2, 2> a("file");
+    int tmp;
 
-    sjtu::vector<int> insert_key;
+    for (int i = 0; i < 20000; ++i) {
+        std::cin >> tmp;
+        a.insert(tmp, tmp);
+    }
+    for (int i = 0; i < 19900; ++i) {
+        std::cin >> tmp;
+        a.remove(tmp);
+    }
+    for (int i = 0; i < 90; ++i) {
+        std::cin >> tmp;
+        sjtu::vector<int> ans = a.find(tmp, comp);
+        if (ans.empty() || ans[0] != tmp) {
+            std::cout << "oops" << tmp << std::endl;
+            return 0;
+        }
+    }
+    //    a.find({1, 0}, comp).print();
 
-//    a.insert({1, 1}, 1);
-//    a.insert({2, 1}, 1);
-//    a.insert({1, 2}, 2);
-//    a.insert({3, 1}, 1);
-//    a.insert({3, 2}, 2);
-//    a.insert({1, 3}, 3);
-//    a.insert({2, 3}, 3);
-//    a.insert({4, 3}, 3);
-//    a.insert({1, 4}, 4);
-//    a.insert({4, 2}, 2);
+    */
+//    std::cout << sizeof(int) << std::endl;
+//    std::cout << sizeof(bool) << std::endl;
+//    std::cout << sizeof(MyPair) << std::endl;
 
-//    a.remove({2, 1});
-//    a.remove({1, 4});
-//    a.remove({4, 3});
-//    a.remove({3, 1});
-//    a.remove({1, 1});
-
-//    a.print();
-
-//    a.find({1, 0}, comp).print();
-//    a.find({2, 0}, comp).print();
-//    a.find({3, 0}, comp).print();
-//    a.find({5, 0}, comp).print();
-//    a.find({4, 0}, comp).print();
-//    for (int i = 0; i < 100; ++i) {
-//        int tmp = u(e);
-//        insert_key.push_back(tmp);
-//        for (int j = 0; j < 10; ++j) {
-//            a.insert({tmp, tmp + j}, tmp + j);
-//        }
-//    }
-//
-//    for (int i = 0; i < 10; ++i) {
-//        int tmp = insert_key[i + 14];
-//        a.find({tmp, 0}, comp).print();
-//    }
-
-//    a.print();
+    BPlusTree<MyPair, int, 2, 2> b("file");
+    int n;
+    std::cin >> n;
+    std::string instruction;
+    std::string key;
+    int value;
+    while (n--) {
+        std::cin >> instruction;
+        std::cin >> key;
+        if (instruction == "insert") {
+            std::cin >> value;
+            b.insert({key, value}, value);
+        }
+        else if (instruction == "delete") {
+            std::cin >> value;
+            b.remove({key, value});
+        }
+        else if (instruction == "find") {
+            sjtu::vector<int> ans = b.find({key, value}, comp);
+            if (ans.empty()) printf("null\n");
+            else {
+                for (int an : ans) {
+                    printf("%d ", an);
+                }
+                printf("\n");
+            }
+            b.print();
+        }
+    }
 
     return 0;
 }

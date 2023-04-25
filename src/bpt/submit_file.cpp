@@ -1,4 +1,709 @@
-#include "bpt.h"
+
+#include <fstream>
+#include <string>
+#include <iostream>
+#include <cstring>
+#include <climits>
+#include <iostream>
+#include <cstddef>
+
+namespace sjtu {
+
+class exception {
+protected:
+    const std::string variant = "";
+    std::string detail = "";
+public:
+    exception() {}
+    exception(const exception &ec) : variant(ec.variant), detail(ec.detail) {}
+    virtual std::string what() {
+        return variant + " " + detail;
+    }
+};
+
+class index_out_of_bound : public exception {
+/* __________________________ */
+};
+
+class runtime_error : public exception {
+/* __________________________ */
+};
+
+class invalid_iterator : public exception {
+/* __________________________ */
+};
+
+class container_is_empty : public exception {
+/* __________________________ */
+};
+
+template<typename T>
+class vector {
+public:
+    class const_iterator;
+
+    class iterator {
+        friend class vector<T>;
+    public:
+        using difference_type = std::ptrdiff_t;
+        using value_type = T;
+        using pointer = T *;
+        using reference = T &;
+        using iterator_category = std::output_iterator_tag;
+
+    private:
+        pointer iter;
+        pointer start;
+        pointer end;
+
+        iterator(pointer p, pointer _st, pointer _ed) : iter(p), start(_st), end(_ed) {}
+    public:
+        iterator() : iter(nullptr), start(nullptr), end(nullptr) {}
+        iterator(const iterator &other) : iter(other.iter), start(other.start), end(other.end) {}
+
+        iterator operator+(const int &n) const {
+            return {iter + n, start, end};
+        }
+
+        iterator operator-(const int &n) const {
+            return {iter - n, start, end};
+        }
+
+        int operator-(const iterator &rhs) const {
+            pointer tmp = start;
+            int cnt = 0, i = -1, j = -1;
+            while (tmp++ != end + 1) {
+                if (tmp == iter) i = cnt;
+                if (tmp == rhs.iter) j = cnt;
+                ++cnt;
+            }
+            if (j == -1) throw invalid_iterator();
+            return std::abs(i - j);
+        }
+
+        iterator &operator+=(const int &n) {
+            iter += n;
+            return *this;
+        }
+
+        iterator &operator-=(const int &n) {
+            iter -= n;
+            return *this;
+        }
+
+        iterator operator++(int) {
+            iterator tmp(*this);
+            ++iter;
+            return tmp;
+        }
+
+        iterator &operator++() {
+            ++iter;
+            return *this;
+        }
+
+        iterator operator--(int) {
+            iterator tmp(*this);
+            --iter;
+            return tmp;
+        }
+
+        iterator &operator--() {
+            --iter;
+            return *this;
+        }
+
+        T &operator*() const {
+            return *iter;
+        }
+
+        bool operator==(const iterator &rhs) const {
+            return iter == rhs.iter;
+        }
+
+        bool operator==(const const_iterator &rhs) const {
+            return iter == rhs.iter;
+        }
+
+        bool operator!=(const iterator &rhs) const {
+            return iter != rhs.iter;
+        }
+
+        bool operator!=(const const_iterator &rhs) const {
+            return iter != rhs.iter;
+        }
+    };
+
+    class const_iterator {
+        friend class vector<T>;
+    public:
+        using difference_type = std::ptrdiff_t;
+        using value_type = T;
+        using pointer = const T *;
+        using reference = T &;
+        using iterator_category = std::output_iterator_tag;
+
+    private:
+        pointer iter;
+        pointer start;
+        pointer end;
+        const_iterator(pointer p, pointer _st, pointer _ed) : iter(p), start(_st), end(_ed) {}
+
+    public:
+        const_iterator() : iter(nullptr), start(nullptr), end(nullptr) {}
+        const_iterator(const const_iterator &other) : iter(other.iter), start(other.start), end(other.end) {}
+
+        const_iterator operator+(const int &n) const {
+            return {iter + n, start, end};
+        }
+
+        const_iterator operator-(const int &n) const {
+            return {iter - n, start, end};
+        }
+
+        int operator-(const const_iterator &rhs) const {
+            pointer tmp = start;
+            int cnt = 0, i = -1, j = -1;
+            while (tmp++ != end + 1) {
+                if (tmp == iter) i = cnt;
+                if (tmp == rhs.iter) j = cnt;
+                ++cnt;
+            }
+            if (j == -1) throw invalid_iterator();
+            return std::abs(i - j);
+        }
+
+        const_iterator &operator+=(const int &n) {
+            iter += n;
+            return *this;
+        }
+
+        const_iterator &operator-=(const int &n) {
+            iter -= n;
+            return *this;
+        }
+
+        const_iterator operator++(int) {
+            const_iterator tmp(*this);
+            ++iter;
+            return tmp;
+        }
+
+        const_iterator &operator++() {
+            ++iter;
+            return *this;
+        }
+
+        const_iterator operator--(int) {
+            const_iterator tmp(*this);
+            --iter;
+            return tmp;
+        }
+
+        const_iterator &operator--() {
+            --iter;
+            return *this;
+        }
+
+        const T &operator*() const {
+            return *iter;
+        }
+
+        bool operator==(const iterator &rhs) const {
+            return iter == rhs.iter;
+        }
+
+        bool operator==(const const_iterator &rhs) const {
+            return iter == rhs.iter;
+        }
+
+        bool operator!=(const iterator &rhs) const {
+            return iter != rhs.iter;
+        }
+
+        bool operator!=(const const_iterator &rhs) const {
+            return iter != rhs.iter;
+        }
+    };
+
+    vector() : _size(0),_capacity(2) {
+        _data = _alloc.allocate(2);
+    }
+
+    // 拷贝时capacity和size均等于other.size
+    vector(const vector &other) : _size(other._size),_capacity(other._size) {
+        _data = _alloc.allocate(_size);
+        T *p = _data, *q = other._data;
+        for (int i = 0; i < _size; ++i) {
+            p = new (p) T (*q);
+            ++p;
+            ++q;
+        }
+    }
+
+    ~vector() {
+        T *p = _data;
+        for (int i = 0; i < _size; i++) {
+            p->~T();
+            ++p;
+        }
+        _alloc.deallocate(_data, _capacity);
+    }
+
+    vector &operator=(const vector &other) {
+        if (&other == this) return *this;
+        this->~vector();
+        _size = other._size;
+        _capacity = other._size;
+        _data = _alloc.allocate(_size);
+        T *p = _data, *q = other._data;
+        for (int i = 0; i < _size; ++i) {
+            p = new (p) T (*q);
+            ++p;
+            ++q;
+        }
+        return *this;
+    }
+
+    // 访问指定位置元素（检查下标越界）
+    T &at(const size_t &pos) {
+        if (pos < 0 || pos >= _size) throw index_out_of_bound();
+        return *(_data + pos);
+    }
+    const T &at(const size_t &pos) const {
+        if (pos < 0 || pos >= _size) throw index_out_of_bound();
+        return *(_data + pos);
+    }
+
+    T &operator[](const size_t &pos) {
+        return this->at(pos);
+    }
+    const T &operator[](const size_t &pos) const {
+        return this->at(pos);
+    }
+
+    const T &front() const {
+        if (_size == 0) throw container_is_empty();
+        return *_data;
+    }
+
+    const T &back() const {
+        if (_size == 0) throw container_is_empty();
+        return *(_data + _size - 1);
+    }
+
+    iterator begin() {
+        return {_data, _data, (_data + _size)};
+    }
+
+    const_iterator cbegin() const {
+        return {_data, _data, _data + _size};
+    }
+
+    iterator end() {
+        return {_data + _size, _data, _data + _size};
+
+    }
+
+    const_iterator cend() const {
+        return {_data + _size, _data, _data + _size};
+    }
+
+    bool empty() const {
+        return _size == 0;
+    }
+
+    size_t size() const {
+        return _size;
+    }
+
+    void clear() {
+        T *p = _data;
+        while (_size--) {
+            p->~T();
+            ++p;
+        }
+    }
+
+    iterator insert(iterator pos, const T &value) {
+        if (_size < _capacity - 1) {
+            T *p = _data + _size;
+            p = new (p) T (*(p - 1));
+            --p;
+            while (p != pos.iter) {
+                *p = *(p - 1);
+                --p;
+            }
+            *p = value;
+            ++_size;
+            return pos;
+        }
+        _capacity *= 2;
+        T *new_data = _alloc.allocate(_capacity);
+        T *tmp = new_data;
+        T *p = _data;
+        T *target = nullptr;
+        int i = 0;
+        while (p != pos.iter) {
+            tmp = new (tmp) T (*p);
+            p->~T();
+            ++tmp;
+            ++p;
+            ++i;
+        }
+        tmp = new (tmp) T (value);
+        target = tmp;
+        ++tmp;
+        while (i < _size) {
+            tmp = new (tmp) T (*p);
+            p->~T();
+            ++tmp;
+            ++p;
+            ++i;
+        }
+        _alloc.deallocate(_data, _capacity / 2);
+        _data = new_data;
+        ++_size;
+        return {target, _data, _data + _size};
+    }
+
+    iterator insert(const size_t &ind, const T &value) {
+        if (ind > _size) throw index_out_of_bound();
+        return this->insert({_data + ind, _data, _data + _size}, value);
+    }
+
+    iterator erase(iterator pos) {
+        if (_size > _capacity / 4) {
+            T *p = pos.iter;
+            --_size;
+            while (p != _data + _size) {
+                *p = *(p + 1);
+                ++p;
+            }
+            p->~T();
+            return pos;
+        }
+        size_t pre_capacity = _capacity;
+        _capacity /= 2;
+        T *new_data = _alloc.allocate(_capacity);
+        T *tmp = new_data;
+        T *p = _data;
+        T *target = nullptr;
+        int i = 0;
+        while (p != pos.iter) {
+            tmp = new (tmp) T (*p);
+            p->~T();
+            ++tmp;
+            ++p;
+            ++i;
+        }
+        target = tmp;
+        p->~T();
+        ++p;
+        ++i;
+        while (i < _size) {
+            tmp = new (tmp) T (*p);
+            p->~T();
+            ++tmp;
+            ++p;
+            ++i;
+        }
+        _alloc.deallocate(_data, pre_capacity);
+        _data = new_data;
+        --_size;
+        return {target, _data, _data + _size};
+    }
+
+    iterator erase(const size_t &ind) {
+        if (ind >= _size) throw index_out_of_bound();
+        return this->erase({_data + ind, _data, _data + _size});
+    }
+
+    void push_back(const T &value) {
+        if (_size < _capacity - 1) {
+            T *p = _data + _size;
+            p = new (p) T (value);
+            ++_size;
+            return;
+        }
+        _capacity *= 2;
+        T *new_data = _alloc.allocate(_capacity);
+        T *tmp = new_data;
+        T *p = _data;
+        for (int i = 0; i < _size; ++i) {
+            tmp = new (tmp) T (*p);
+            p->~T();
+            ++tmp;
+            ++p;
+        }
+        tmp = new (tmp) T (value);
+        _alloc.deallocate(_data, _capacity / 2);
+        _data = new_data;
+        ++_size;
+    }
+
+    void pop_back() {
+        if (_size == 0) throw container_is_empty();
+        if (_size > _capacity / 4) {
+            --_size;
+            (_data + _size)->~T();
+            return;
+        }
+        size_t pre_capacity = _capacity;
+        _capacity /= 2;
+        T *new_data = _alloc.allocate(_capacity);
+        T *tmp = new_data;
+        T *p = _data;
+        int i = 0;
+        --_size;
+        while (i < _size) {
+            tmp = new (tmp) T (*p);
+            p->~T();
+            ++tmp;
+            ++p;
+            ++i;
+        }
+        p->~T();
+        _alloc.deallocate(_data, pre_capacity);
+        _data = new_data;
+    }
+
+    void print() {
+        iterator p = begin();
+        while (p != end()) {
+            std::cout << *p.iter << ' ';
+            ++p;
+        }
+        std::cout << std::endl;
+    }
+
+private:
+    T *_data;
+    size_t _size;
+    size_t _capacity;
+    std::allocator<T> _alloc;
+
+};
+
+}
+
+using Ptr = int;
+
+constexpr int MAXBits = 64;
+class String {
+    char data[MAXBits] = {0};
+
+public:
+    String() {}
+    String(const std::string &s) {
+        for (int i = 0; i < s.length(); ++i) {
+            data[i] = s[i];
+        }
+    }
+    bool operator==(const String &other) const {
+        return (strcmp(data, other.data) == 0);
+    }
+    bool operator<(const String &other) const {
+        return (strcmp(data, other.data) < 0);
+    }
+    bool operator>(const String &other) const {
+        return (strcmp(data, other.data) > 0);
+    }
+    friend std::ostream &operator<<(std::ostream &os, const String &obj) {
+        os << obj.data;
+        return os;
+    }
+};
+
+struct MyPair {
+    String k;
+    int v;
+public:
+    MyPair(const String &key, int value) : k(key), v(value) {}
+    MyPair() : k(), v(0) {}
+
+    bool operator==(const MyPair &other) const {
+        return k == other.k && v == other.v;
+    }
+    bool operator<(const MyPair &other) const {
+        if (k < other.k) return true;
+        if (k > other.k) return false;
+        return v < other.v;
+    }
+    friend std::ostream &operator<<(std::ostream &os, const MyPair &obj) {
+        os << '(' << obj.k << ", " << obj.v << ')';
+        return os;
+    }
+};
+
+template <typename keyType, typename valueType, int t, int l>
+class BPlusTree {
+private:
+    class node {
+        friend class BPlusTree;
+        int key_num = 0;
+//        Ptr parent = -1;
+        bool son_is_leaf = true;
+        keyType keys[2 * t + 2];
+        Ptr sons[2 * t + 2] = {-1};
+    };
+
+    class LeafNode {
+        friend class BPlusTree;
+        int key_num = 0;
+        Ptr next_leaf = -1;
+//        Ptr pre_leaf = -1;
+//        Ptr parent = -1;
+        keyType keys[2 * l + 2];
+        valueType values[2 * l + 2];
+    };
+
+    std::fstream file;
+    Ptr root;
+    bool root_is_leaf;
+
+    // todo 调用前可能要考虑写到垃圾桶里？（如果是写一个全新的节点）（没有垃圾桶的话是写在文件末尾）
+    /*
+     * 返回写下的那个块的起始位置
+     * pos == -1表示在末尾写
+     */
+    Ptr WriteLeafNode(const LeafNode &tmp, const Ptr &pos);
+    Ptr WriteNode(const node &tmp, const Ptr &pos);
+
+    // ! 直接引用传参
+    // todo 调用前可能要考虑去缓存找一下
+    void ReadNode(node &tmp, const Ptr &pos);
+    void ReadLeafNode(LeafNode &tmp, const Ptr &pos);
+
+    void PrintLeafNode(Ptr pos);
+    void PrintNode(Ptr pos);
+
+    /*
+     * 二分查找keys中key的位置
+     * bool返回是否找到key
+     * 若找到了，int返回找到的下标
+     * 若没找到，int返回key”属于“的那一个key的范围的key的下标
+     * e.g. 3 4 6 9 13 若key为2，返回0。若key为3，返回1。若key为7，返回3
+     */
+    std::pair<int, bool> FindKey(const keyType keys[], int key_num, const keyType &key);
+
+    /*
+     * 通过comp函数比较进行二分查找
+     * bool返回是否找到key
+     * 若找不到key，返回小于目标key的最大的key的下标
+     * 若找到key，返回所以key中最小的（第一个）key前面的那一个下标（可能为0）
+     * key_num不会等于0
+     */
+    std::pair<int, bool> FindFirstKey(const keyType keys[], int key_num, const keyType &key, bool (*comp)(const keyType &, const keyType &));
+
+    /*
+     * 插入（key, value)
+     * 若插入后满块，调用SplitLeafNode裂块
+     * 若未裂块，返回{key(), -1}，否则返回{要在父节点中新增的key，该key对应的son}
+     */
+    std::pair<keyType, Ptr> InsertIntoLeafNode(LeafNode target_node, Ptr target_pos, const keyType &key, const valueType &value);
+
+    /*
+     * 对（完成插入后的）目标块进行裂块，向右裂块，需更新顺序链接的Ptr，最后写回文件
+     * 2 * l + 1 = l + (l + 1)
+     * 返回{要在父节点中新增的key，该key对应的son}
+     */
+    std::pair<keyType, Ptr> SplitLeafNode(LeafNode target_node, Ptr target_pos);
+
+    /*
+     * 找到key后调用InsertIntoLeafNode或InsertIntoNode继续插入
+     * 根据调用函数的返回值修改本节点的keys和sons
+     * 如果满了，调用SplitNode裂块
+     * 如果是root，且裂块了，那么裂完要新增一个root并更新root，返回什么不重要
+     * 返回{要在父节点中新增的key，该key对应的son}
+     */
+    std::pair<keyType, Ptr> InsertIntoNode(node target_node, Ptr target_pos, const keyType &key, const valueType &value);
+
+    /*
+     * 同SplitLeafNode
+     * 区别在于，SplitLeafNode是叶子节点不损失key，只复制一个key到爸爸
+     * 而SplitNode是下方node会损失一个key，有一个key被移动到了爸爸
+     * 2 * t + 1 = t + 1 + t
+     */
+    std::pair<keyType, Ptr> SplitNode(node target_node, Ptr target_pos);
+
+    /*
+     * 在pos位置的node节点中查找key
+     * 若找到key，向前一个key对应的son走，否则向小于key的最大key值对应的son走
+     * 若son_is_leaf 返回要找的son的pos
+     * 否则递归调用，去儿子里继续找
+     */
+    Ptr FindinNode(Ptr pos, const keyType &key, bool (*comp)(const keyType &, const keyType &));
+
+    /*
+     * 从pos位置的叶子节点开始，找到key对应的所有value（顺序）
+     */
+    sjtu::vector<valueType> FindinLeafNode(Ptr pos, const keyType &key, bool (*comp)(const keyType &, const keyType &));
+
+    /*
+     * pos为需要删除的叶子节点对应的读写位置
+     * p为上方出现过该key的node的读写位置（若无，则为-1）
+     * 删除键值对，如有必要(p != -1)，修改p位置的节点的keys为删除本key后接着的下一个key
+     * 如果不需要借儿子或并块，直接写回文件并返回{false, ^}
+     * 否则返回{true, LeafNode}即已经删掉该键值对的叶节点
+     */
+    std::pair<bool, LeafNode> EraseFromLeafNode(Ptr pos, Ptr p, const keyType &key);
+
+    std::pair<bool, node> EraseFromNode(Ptr pos, Ptr p, const keyType &key);
+
+    /*
+     * 尝试对target_node借儿子 (如果没有哥哥or弟弟，传入Ptr为-1)
+     * 若借到了哥哥的儿子（把哥哥的大儿子变成了我的小儿子），return {1, 我的新小儿子}
+     * 若借到了弟弟的儿子（把弟弟的小儿子变成了我的大儿子），return {2, 弟弟的新小儿子}
+     * 如果借儿子成功，均WriteLeafNode写回
+     * 如果都没借到，return {0, keyType()}
+     */
+    std::pair<int, keyType> BorrowLeafNode(Ptr pos, LeafNode target_node, Ptr elder, Ptr younger);
+
+    std::pair<int, keyType> BorrowNode(Ptr pos, node target_node, Ptr elder, Ptr younger, const keyType &left_fa, const keyType &right_fa);
+
+    /*
+     * sign==1表示brother是弟弟（优先弟弟），sign==2表示brother是哥哥
+     * 均向左边并块，故不用向上修改key值。右边的块进垃圾桶
+     */
+    void MergeLeafNode(Ptr pos, LeafNode target_node, Ptr brother, int sign);
+
+    void MergeNode(Ptr pos, node target_node, Ptr brother, int sign, const keyType &fa);
+
+public:
+
+    explicit BPlusTree(const std::string &file_name);
+    ~BPlusTree();
+
+    /*
+     * 数据需保证key不重复
+     * 如果key已经存在，就什么都不做
+     * 没有送养
+     * 只有发生裂块才需要更新父节点的keys（新增一个key和son），单纯插入不需要修改父节点的keys
+     */
+    void insert(const keyType &key, const valueType &value);
+
+    /*
+     * 如果不存在这一key，什么都不做
+     * 有借儿子和并块
+     * 如果删的是某一叶节点的第一个key，要修改上方对应key值
+     */
+    void remove(const keyType &key);
+
+    /*
+     * 通过Compare比较key值进行查找
+     * 可能有多个value对应“在Compare意义下的”同一个key
+     * 利用叶子节点的顺序链接找到所有value
+     * （得到的value是升序的）
+     */
+    sjtu::vector<valueType> find(const keyType &key, bool (*comp)(const keyType &, const keyType &));
+
+    /*
+     * 用于调试，输出整颗树
+     * 每个结点一行，输出keys和sons or values
+     */
+    void print();
+};
 
 template <typename keyType, typename valueType, int t, int l>
 BPlusTree<keyType, valueType, t, l>::BPlusTree(const std::string &file_name) {
@@ -606,7 +1311,70 @@ void BPlusTree<keyType, valueType, t, l>::remove(const keyType &key) {
     EraseFromNode(root, -1, key);
 }
 
-template class BPlusTree<MyPair, int, 2, 2>;
 template class BPlusTree<MyPair, int, 27, 27>;
 //template class BPlusTree<String, int, 2, 2>;
 //template class BPlusTree<int, int, 2, 2>;
+
+bool comp(const MyPair &a, const MyPair &b) {
+    return a.k < b.k;
+}
+
+int main() {
+    /*
+    BPlusTree<int, int, 2, 2> a("file");
+    int tmp;
+
+    for (int i = 0; i < 20000; ++i) {
+        std::cin >> tmp;
+        a.insert(tmp, tmp);
+    }
+    for (int i = 0; i < 19900; ++i) {
+        std::cin >> tmp;
+        a.remove(tmp);
+    }
+    for (int i = 0; i < 90; ++i) {
+        std::cin >> tmp;
+        sjtu::vector<int> ans = a.find(tmp, comp);
+        if (ans.empty() || ans[0] != tmp) {
+            std::cout << "oops" << tmp << std::endl;
+            return 0;
+        }
+    }
+    //    a.find({1, 0}, comp).print();
+
+    */
+//    std::cout << sizeof(int) << std::endl;
+//    std::cout << sizeof(bool) << std::endl;
+//    std::cout << sizeof(MyPair) << std::endl;
+
+    BPlusTree<MyPair, int, 27, 27> b("file");
+    int n;
+    std::cin >> n;
+    std::string instruction;
+    std::string key;
+    int value;
+    while (n--) {
+        std::cin >> instruction;
+        std::cin >> key;
+        if (instruction == "insert") {
+            std::cin >> value;
+            b.insert({key, value}, value);
+        }
+        else if (instruction == "delete") {
+            std::cin >> value;
+            b.remove({key, value});
+        }
+        else if (instruction == "find") {
+            sjtu::vector<int> ans = b.find({key, value}, comp);
+            if (ans.empty()) printf("null\n");
+            else {
+                for (int an : ans) {
+                    printf("%d ", an);
+                }
+                printf("\n");
+            }
+        }
+    }
+
+    return 0;
+}
