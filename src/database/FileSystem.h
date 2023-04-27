@@ -2,7 +2,7 @@
 #define TICKETSYSTEM_FILESYSTEM_H
 
 #include <fstream>
-#include <unordered_map>
+//#include <unordered_map>
 #include "../utilis/vector.hpp"
 #include "../utilis/LinkedHashMap.h"
 
@@ -22,37 +22,38 @@ private:
         node(const page &data_, const Ptr &pos_, node *prev, node *next) : data(data_), pos(pos_), pre(prev), nxt(next) {}
     };
     std::fstream file;
-    std::unordered_map<int, node *> Map;
-//    LinkedHashMap<node *, m> unordered_map;
+//    std::unordered_map<int, node *> Map;
+    LinkedHashMap<node *, m> unordered_map;
     node *head;
     node *tail;
-    int size;
+    int cache_size;
+    // 开关文件会丢失一部分垃圾
     sjtu::vector<Ptr> recycle_bin;
-    Ptr end_of_file = 0;
+    Ptr end_of_file;
 
     // * 写回文件，更新size和hash_map，删除最后一个结点
     void CachePop() {
         node *tmp = tail->pre;
         file.seekp(tmp->pos);
         file.write(reinterpret_cast<char *> (&tmp->data), size_of_page);
-        Map[tmp->pos / size_of_page] = nullptr;
-//        unordered_map.EraseValueAt(tmp->pos / size_of_page);
+//        Map[tmp->pos / size_of_page] = nullptr;
+        unordered_map.EraseValueAt(tmp->pos / size_of_page);
         tmp->pre->nxt = tail;
         tail->pre = tmp->pre;
         delete tmp;
-        --size;
+        --cache_size;
     }
 
     // * 若cache已满，先pop
     // * 加入在队头，更新size和hash_map
     void CacheAddPage(const page &obj, const Ptr &pos) {
-        if (size == m) CachePop();
+        if (cache_size == m) CachePop();
         node *tmp = new node(obj, pos, head, head->nxt);
         head->nxt->pre = tmp;
         head->nxt = tmp;
-        ++size;
-        Map[pos / size_of_page] = tmp;
-//        unordered_map.SetValueAt(pos / size_of_page, tmp);
+        ++cache_size;
+//        Map[pos / size_of_page] = tmp;
+        unordered_map.SetValueAt(pos / size_of_page, tmp);
     }
 
     // * 如果已经是队头，什么都不做
@@ -68,7 +69,7 @@ private:
 
 public:
     // * 完成文件继承
-    explicit FileSystem(const std::string &file_name) {
+    FileSystem(const std::string &file_name) {
         file.open(file_name, std::ifstream::in | std::fstream::out | std::ifstream::binary);
         if (!file.good()) { // 文件不存在，需要新建一个
             file.close();
@@ -78,17 +79,21 @@ public:
             file.clear();
             file.open(file_name,std::fstream::in | std::fstream::out | std::fstream::binary);
         }
+        // ! 设置end_of_file！
+        // ! seekg(std::ios::end)是错误的！！seekg(0, std::ios::end)
+        file.seekg(0, std::ios::end);
+        end_of_file = file.tellg();
         head = new node();
         tail = new node();
         head->nxt = tail;
         tail->pre = head;
-        size = 0;
+        cache_size = 0;
     }
 
 
     // * 把缓存中的记录全部写回文件
     ~FileSystem() {
-        while (size > 0) {
+        while (cache_size > 0) {
             CachePop();
         }
         delete head;
@@ -98,16 +103,16 @@ public:
 
 
     page ReadPage(Ptr pos) {
-        node *tmp = Map[pos / size_of_page];
-        if (tmp) {
-            CacheMoveToFront(tmp);
-            return tmp->data;
-        }
-//        std::pair<node *, bool> tmp = unordered_map.FindValueAt(pos / size_of_page);
-//        if (tmp.second) {
-//            CacheMoveToFront(tmp.first);
-//            return tmp.first->data;
+//        node *tmp = Map[pos / size_of_page];
+//        if (tmp) {
+//            CacheMoveToFront(tmp);
+//            return tmp->data;
 //        }
+        std::pair<node *, bool> tmp = unordered_map.FindValueAt(pos / size_of_page);
+        if (tmp.second) {
+            CacheMoveToFront(tmp.first);
+            return tmp.first->data;
+        }
         file.seekg(pos);
         page new_page;
         file.read(reinterpret_cast<char *> (&new_page), size_of_page);
@@ -126,16 +131,16 @@ public:
                 recycle_bin.pop_back();
             }
         }
-        node *tmp = Map[pos / size_of_page];
-        if (tmp) {
-            tmp->data = obj;
-            CacheMoveToFront(tmp);
-        }
-//        std::pair<node *, bool> tmp = unordered_map.FindValueAt(pos / size_of_page);
-//        if (tmp.second) {
-//            tmp.first->data = obj;
-//            CacheMoveToFront(tmp.first);
+//        node *tmp = Map[pos / size_of_page];
+//        if (tmp) {
+//            tmp->data = obj;
+//            CacheMoveToFront(tmp);
 //        }
+        std::pair<node *, bool> tmp = unordered_map.FindValueAt(pos / size_of_page);
+        if (tmp.second) {
+            tmp.first->data = obj;
+            CacheMoveToFront(tmp.first);
+        }
         else {
             CacheAddPage(obj, pos);
         }
