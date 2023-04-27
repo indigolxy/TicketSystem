@@ -1,7 +1,7 @@
 #include "BPlusTree.h"
 
 bool comp(const MyPair &a, const MyPair &b) {
-    return a.k < b.k;
+    return strcmp(a.k.data, b.k.data) < 0;
 }
 
 int main() {

@@ -11,11 +11,10 @@
 using Ptr = int;
 
 constexpr int MAXBits = 64;
-class String {
+struct String {
     char data[MAXBits] = {0};
 
-public:
-    String() {}
+    String() = default;
     String(const std::string &s) {
         for (int i = 0; i < s.length(); ++i) {
             data[i] = s[i];
@@ -44,11 +43,11 @@ public:
     MyPair() : k(), v(0) {}
 
     bool operator==(const MyPair &other) const {
-        return k == other.k && v == other.v;
+        return (strcmp(k.data, other.k.data) == 0) && v == other.v;
     }
     bool operator<(const MyPair &other) const {
-        if (k < other.k) return true;
-        if (k > other.k) return false;
+        if (strcmp(k.data, other.k.data) < 0) return true;
+        if (strcmp(k.data, other.k.data) > 0) return false;
         return v < other.v;
     }
     friend std::ostream &operator<<(std::ostream &os, const MyPair &obj) {
@@ -80,8 +79,8 @@ private:
     };
 
     std::fstream file_inherit;
-    FileSystem<node, 100> file_node;
-    FileSystem<LeafNode, 100> file_leaf;
+    FileSystem<node, 150> file_node;
+    FileSystem<LeafNode, 150> file_leaf;
     Ptr root;
     bool root_is_leaf;
 
