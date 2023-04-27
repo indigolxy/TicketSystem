@@ -85,19 +85,6 @@ private:
     Ptr root;
     bool root_is_leaf;
 
-    // todo 把外壳删了
-
-    /*
-     * 返回写下的那个块的起始位置
-     * pos == -1表示在末尾写
-     */
-    Ptr WriteLeafNode(const LeafNode &tmp, const Ptr &pos);
-    Ptr WriteNode(const node &tmp, const Ptr &pos);
-
-    // ! 直接引用传参
-    void ReadNode(node &tmp, const Ptr &pos);
-    void ReadLeafNode(LeafNode &tmp, const Ptr &pos);
-
     void PrintLeafNode(Ptr pos);
     void PrintNode(Ptr pos);
 

@@ -120,6 +120,10 @@ public:
         return new_page;
     }
 
+    /*
+     * 返回写下的那个块的起始位置
+     * pos == -1表示在末尾写
+     */
     Ptr WritePage(const page &obj, Ptr pos)  {
         if (pos == -1) {
             if (recycle_bin.empty()) {

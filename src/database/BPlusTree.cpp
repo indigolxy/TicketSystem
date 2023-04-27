@@ -35,27 +35,6 @@ BPlusTree<keyType, valueType, t, l>::~BPlusTree() {
     file_inherit.write(reinterpret_cast<const char *> (&root_is_leaf), sizeof(bool));
     file_inherit.close();
     file_inherit.clear();
-    // ? 需要显式调用FileSystem析构函数吗
-}
-
-template <typename keyType, typename valueType, int t, int l>
-Ptr BPlusTree<keyType, valueType, t, l>::WriteLeafNode(const BPlusTree::LeafNode &tmp, const Ptr &pos) {
-    return file_leaf.WritePage(tmp, pos);
-}
-
-template <typename keyType, typename valueType, int t, int l>
-Ptr BPlusTree<keyType, valueType, t, l>::WriteNode(const BPlusTree::node &tmp, const Ptr &pos) {
-    return file_node.WritePage(tmp, pos);
-}
-
-template <typename keyType, typename valueType, int t, int l>
-void BPlusTree<keyType, valueType, t, l>::ReadNode(BPlusTree::node &tmp, const Ptr &pos) {
-    tmp = file_node.ReadPage(pos);
-}
-
-template <typename keyType, typename valueType, int t, int l>
-void BPlusTree<keyType, valueType, t, l>::ReadLeafNode(BPlusTree::LeafNode &tmp, const Ptr &pos) {
-    tmp = file_leaf.ReadPage(pos);
 }
 
 template <typename keyType, typename valueType, int t, int l>
@@ -91,7 +70,7 @@ std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l>::InsertIntoLeafNode(
 
     // 1. target_node未满，直接写回文件，不需要修改上方索引节点
     if (target_node.key_num < 2 * l + 1) {
-        WriteLeafNode(target_node, target_pos);
+        file_leaf.WritePage(target_node, target_pos);
         return {keyType(), -1};
     }
     // 2. target_node满了，需裂块
@@ -107,11 +86,11 @@ std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l>::SplitLeafNode(LeafN
         tmp.values[i] = target_node.values[i + l];
     }
     tmp.next_leaf = target_node.next_leaf;
-    Ptr tmp_pos = WriteLeafNode(tmp, -1);
+    Ptr tmp_pos = file_leaf.WritePage(tmp, -1);
 
     target_node.key_num = l;
     target_node.next_leaf = tmp_pos;
-    WriteLeafNode(target_node, target_pos);
+    file_leaf.WritePage(target_node, target_pos);
     return {tmp.keys[1], tmp_pos};
 }
 
@@ -121,13 +100,11 @@ std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l>::InsertIntoNode(node
     std::pair<keyType, Ptr> res;
     Ptr next_pos = target_node.sons[tmp.first];
     if (target_node.son_is_leaf) {
-        LeafNode next_node;
-        ReadLeafNode(next_node, next_pos);
+        LeafNode next_node = file_leaf.ReadPage(next_pos);
         res = InsertIntoLeafNode(next_node, next_pos, key, value);
     }
     else {
-        node next_node;
-        ReadNode(next_node, next_pos);
+        node next_node = file_node.ReadPage(next_pos);
         res = InsertIntoNode(next_node, next_pos, key, value);
     }
     if (res.second == -1) return res;
@@ -143,7 +120,7 @@ std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l>::InsertIntoNode(node
 
     // 若target_node未满，可以直接写入文件并结束
     if (target_node.key_num < 2 * t + 1) {
-        WriteNode(target_node, target_pos);
+        file_node.WritePage(target_node, target_pos);
         return {keyType(), -1};
     }
     // 若target_node满了，需要裂块
@@ -155,7 +132,7 @@ std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l>::InsertIntoNode(node
     new_root.keys[1] = ans.first;
     new_root.sons[0] = target_pos;
     new_root.sons[1] = ans.second;
-    root = WriteNode(new_root, -1);
+    root = file_node.WritePage(new_root, -1);
     return {keyType(), -1};
 }
 
@@ -169,10 +146,10 @@ std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l>::SplitNode(BPlusTree
     }
     tmp.sons[0] = target_node.sons[t + 1];
     tmp.son_is_leaf = target_node.son_is_leaf;
-    Ptr tmp_pos = WriteNode(tmp, -1);
+    Ptr tmp_pos = file_node.WritePage(tmp, -1);
 
     target_node.key_num = t;
-    WriteNode(target_node, target_pos);
+    file_node.WritePage(target_node, target_pos);
     return {target_node.keys[t + 1], tmp_pos};
 }
 
@@ -184,14 +161,13 @@ void BPlusTree<keyType, valueType, t, l>::insert(const keyType &key, const value
         tmp.keys[1] = key;
         tmp.values[1] = value;
         tmp.key_num = 1;
-        root = WriteLeafNode(tmp, -1);
+        root = file_leaf.WritePage(tmp, -1);
         root_is_leaf = true;
         return;
     }
 
     if (root_is_leaf) {
-        LeafNode target_root;
-        ReadLeafNode(target_root, root);
+        LeafNode target_root = file_leaf.ReadPage(root);
         std::pair<keyType, Ptr> res = InsertIntoLeafNode(target_root, root, key, value);
         if (res.second == -1) return;
         node new_root;
@@ -200,26 +176,24 @@ void BPlusTree<keyType, valueType, t, l>::insert(const keyType &key, const value
         new_root.keys[1] = res.first;
         new_root.sons[0] = root;
         new_root.sons[1] = res.second;
-        root = WriteNode(new_root, -1);
+        root = file_node.WritePage(new_root, -1);
         root_is_leaf = false;
         return;
     }
 
-    node target;
-    ReadNode(target, root);
+    node target = file_node.ReadPage(root);
     InsertIntoNode(target, root, key, value);
 }
 
 template <typename keyType, typename valueType, int t, int l>
 void BPlusTree<keyType, valueType, t, l>::PrintLeafNode(Ptr pos) {
-    LeafNode tmp;
-    ReadLeafNode(tmp, pos);
+    LeafNode tmp = file_leaf.ReadPage(pos);
     for (int i = 1; i <= tmp.key_num; ++i) {
         std::cout << " (" << tmp.keys[i] << ", " << tmp.values[i] << ") ";
     }
     if (tmp.next_leaf > 0) {
         std::cout << " --> ";
-        ReadLeafNode(tmp, tmp.next_leaf);
+        tmp = file_leaf.ReadPage(tmp.next_leaf);
         for (int i = 1; i <= tmp.key_num; ++i) {
             std::cout << " (" << tmp.keys[i] << ", " << tmp.values[i] << ") ";
         }
@@ -229,8 +203,7 @@ void BPlusTree<keyType, valueType, t, l>::PrintLeafNode(Ptr pos) {
 
 template <typename keyType, typename valueType, int t, int l>
 void BPlusTree<keyType, valueType, t, l>::PrintNode(Ptr pos) {
-    node tmp;
-    ReadNode(tmp, pos);
+    node tmp = file_node.ReadPage(pos);
     for (int i = 1; i <= tmp.key_num; ++i) {
         std::cout << " " << tmp.keys[i] << " ";
     }
@@ -287,8 +260,7 @@ std::pair<int, bool> BPlusTree<keyType, valueType, t, l>::FindFirstKey(const key
 
 template <typename keyType, typename valueType, int t, int l>
 Ptr BPlusTree<keyType, valueType, t, l>::FindinNode(Ptr pos, const keyType &key, bool (*comp)(const keyType &, const keyType &)) {
-    node tmp;
-    ReadNode(tmp, pos);
+    node tmp = file_node.ReadPage(pos);
     int res = FindFirstKey(tmp.keys, tmp.key_num, key, comp).first;
     if (tmp.son_is_leaf) return tmp.sons[res];
     Ptr ans = FindinNode(tmp.sons[res], key, comp);
@@ -297,15 +269,14 @@ Ptr BPlusTree<keyType, valueType, t, l>::FindinNode(Ptr pos, const keyType &key,
 
 template <typename keyType, typename valueType, int t, int l>
 sjtu::vector<valueType> BPlusTree<keyType, valueType, t, l>::FindinLeafNode(Ptr pos, const keyType &key, bool (*comp)(const keyType &, const keyType &)) {
-    LeafNode tmp;
-    ReadLeafNode(tmp, pos);
+    LeafNode tmp = file_leaf.ReadPage(pos);
     sjtu::vector<valueType> ans;
     std::pair<int, bool> res = FindFirstKey(tmp.keys, tmp.key_num, key, comp);
     if (!res.second) {
         // 找不到 可能在后一个叶子中
         int nxt = tmp.next_leaf;
         if (nxt == -1) return ans;
-        ReadLeafNode(tmp, nxt);
+        tmp = file_leaf.ReadPage(nxt);
         res = FindFirstKey(tmp.keys, tmp.key_num, key, comp);
         if (!res.second) return ans; // 还是找不到 就寄了
     }
@@ -317,7 +288,7 @@ sjtu::vector<valueType> BPlusTree<keyType, valueType, t, l>::FindinLeafNode(Ptr 
             // 去看下一个叶子节点
             int nxt = tmp.next_leaf;
             if (nxt == -1) return ans;
-            ReadLeafNode(tmp, nxt);
+            tmp = file_leaf.ReadPage(nxt);
             p = 1;
         }
     }
@@ -333,8 +304,7 @@ sjtu::vector<valueType> BPlusTree<keyType, valueType, t, l>::find(const keyType 
 
 template <typename keyType, typename valueType, int t, int l>
 std::pair<bool, std::pair<typename BPlusTree<keyType, valueType, t, l>::LeafNode, keyType>> BPlusTree<keyType, valueType, t, l>::EraseFromLeafNode(Ptr pos, const keyType &key) {
-    LeafNode tmp;
-    ReadLeafNode(tmp, pos);
+    LeafNode tmp = file_leaf.ReadPage(pos);
     std::pair<int, bool> res = FindKey(tmp.keys, tmp.key_num, key);
     // 找不到：什么都不做
     if (!res.second) return {false, {tmp, keyType()}};
@@ -347,7 +317,7 @@ std::pair<bool, std::pair<typename BPlusTree<keyType, valueType, t, l>::LeafNode
 
     // 如果key_num符合要求，不需要进一步处理，可以直接写回文件
     if (tmp.key_num > l - 1) {
-        WriteLeafNode(tmp, pos);
+        file_leaf.WritePage(tmp, pos);
         return {false, {tmp, tmp.keys[1]}};
     }
     // 否则后续需要借儿子或者并块，返回true（后续再写回文件）
@@ -356,8 +326,7 @@ std::pair<bool, std::pair<typename BPlusTree<keyType, valueType, t, l>::LeafNode
 
 template <typename keyType, typename valueType, int t, int l>
 std::pair<bool, std::pair<typename BPlusTree<keyType, valueType, t, l>::node, keyType>> BPlusTree<keyType, valueType, t, l>::EraseFromNode(Ptr pos, const keyType &key) {
-    node tmp;
-    ReadNode(tmp, pos);
+    node tmp = file_node.ReadPage(pos);
     std::pair<int, bool> find_res = FindKey(tmp.keys, tmp.key_num, key);
     // ! find_res.first可能为0！elder也可能为0!
     Ptr next = tmp.sons[find_res.first];
@@ -369,7 +338,7 @@ std::pair<bool, std::pair<typename BPlusTree<keyType, valueType, t, l>::node, ke
         std::pair<bool, std::pair<LeafNode, keyType>> res = EraseFromLeafNode(next, key);
         if (find_res.second) tmp.keys[find_res.first] = res.second.second;
         if (!res.first) {
-            if (find_res.second) WriteNode(tmp, pos);
+            if (find_res.second) file_node.WritePage(tmp, pos);
             return {false, {tmp, res.second.second}};
         }
         res_key = res.second.second;
@@ -397,7 +366,7 @@ std::pair<bool, std::pair<typename BPlusTree<keyType, valueType, t, l>::node, ke
         std::pair<bool, std::pair<node, keyType>> res = EraseFromNode(next, key);
         if (find_res.second) tmp.keys[find_res.first] = res.second.second;
         if (!res.first) {
-            if (find_res.second) WriteNode(tmp, pos);
+            if (find_res.second) file_node.WritePage(tmp, pos);
             return {false, {tmp, res.second.second}};
         }
         res_key = res.second.second;
@@ -437,11 +406,11 @@ std::pair<bool, std::pair<typename BPlusTree<keyType, valueType, t, l>::node, ke
         }
     }
     if (tmp.key_num > t - 1) {
-        WriteNode(tmp, pos);
+        file_node.WritePage(tmp, pos);
         return {false, {tmp, res_key}};
     }
     if (pos == root) {
-        WriteNode(tmp, pos);
+        file_node.WritePage(tmp, pos);
         return {true, {tmp, res_key}};
     }
     return {true, {tmp, res_key}};
@@ -450,8 +419,7 @@ std::pair<bool, std::pair<typename BPlusTree<keyType, valueType, t, l>::node, ke
 template <typename keyType, typename valueType, int t, int l>
 std::pair<int, keyType> BPlusTree<keyType, valueType, t, l>::BorrowLeafNode(Ptr pos, BPlusTree::LeafNode target_node, Ptr elder, Ptr younger) {
     if (elder != -1) {
-        LeafNode tmp;
-        ReadLeafNode(tmp, elder);
+        LeafNode tmp = file_leaf.ReadPage(elder);
         if (tmp.key_num > l) {
             --tmp.key_num;
             ++target_node.key_num;
@@ -461,14 +429,13 @@ std::pair<int, keyType> BPlusTree<keyType, valueType, t, l>::BorrowLeafNode(Ptr 
             }
             target_node.keys[1] = tmp.keys[tmp.key_num + 1];
             target_node.values[1] = tmp.values[tmp.key_num + 1];
-            WriteLeafNode(tmp, elder);
-            WriteLeafNode(target_node, pos);
+            file_leaf.WritePage(tmp, elder);
+            file_leaf.WritePage(target_node, pos);
             return {1, target_node.keys[1]};
         }
     }
     if (younger != -1) {
-        LeafNode tmp;
-        ReadLeafNode(tmp, younger);
+        LeafNode tmp = file_leaf.ReadPage(younger);
         if (tmp.key_num > l) {
             --tmp.key_num;
             ++target_node.key_num;
@@ -478,8 +445,8 @@ std::pair<int, keyType> BPlusTree<keyType, valueType, t, l>::BorrowLeafNode(Ptr 
                 tmp.keys[i] = tmp.keys[i + 1];
                 tmp.values[i] = tmp.values[i + 1];
             }
-            WriteLeafNode(tmp, younger);
-            WriteLeafNode(target_node, pos);
+            file_leaf.WritePage(tmp, younger);
+            file_leaf.WritePage(target_node, pos);
             return {2, tmp.keys[1]};
         }
     }
@@ -489,8 +456,7 @@ std::pair<int, keyType> BPlusTree<keyType, valueType, t, l>::BorrowLeafNode(Ptr 
 template <typename keyType, typename valueType, int t, int l>
 std::pair<int, keyType> BPlusTree<keyType, valueType, t, l>::BorrowNode(Ptr pos, BPlusTree::node target_node, Ptr elder, Ptr younger, const keyType &left_fa, const keyType &right_fa) {
     if (elder != -1) {
-        node tmp;
-        ReadNode(tmp, elder);
+        node tmp = file_node.ReadPage(elder);
         if (tmp.key_num > t) {
             --tmp.key_num;
             ++target_node.key_num;
@@ -502,14 +468,13 @@ std::pair<int, keyType> BPlusTree<keyType, valueType, t, l>::BorrowNode(Ptr pos,
             target_node.keys[1] = left_fa;
             target_node.sons[0] = tmp.sons[tmp.key_num + 1];
 
-            WriteNode(tmp, elder);
-            WriteNode(target_node, pos);
+            file_node.WritePage(tmp, elder);
+            file_node.WritePage(target_node, pos);
             return {1, tmp.keys[tmp.key_num + 1]};
         }
     }
     if (younger != -1) {
-        node tmp;
-        ReadNode(tmp, younger);
+        node tmp = file_node.ReadPage(younger);
         if (tmp.key_num > t) {
             --tmp.key_num;
             ++target_node.key_num;
@@ -521,8 +486,8 @@ std::pair<int, keyType> BPlusTree<keyType, valueType, t, l>::BorrowNode(Ptr pos,
                 tmp.keys[i] = tmp.keys[i + 1];
                 tmp.sons[i] = tmp.sons[i + 1];
             }
-            WriteNode(tmp, younger);
-            WriteNode(target_node, pos);
+            file_node.WritePage(tmp, younger);
+            file_node.WritePage(target_node, pos);
             return {2, res};
         }
     }
@@ -531,8 +496,7 @@ std::pair<int, keyType> BPlusTree<keyType, valueType, t, l>::BorrowNode(Ptr pos,
 
 template <typename keyType, typename valueType, int t, int l>
 void BPlusTree<keyType, valueType, t, l>::MergeLeafNode(Ptr pos, BPlusTree::LeafNode target_node, Ptr brother, int sign) {
-    LeafNode tmp;
-    ReadLeafNode(tmp, brother);
+    LeafNode tmp = file_leaf.ReadPage(brother);
     if (sign == 1) {
         target_node.key_num = 2 * l - 1;
         for (int i = l; i < 2 * l; ++i) {
@@ -540,7 +504,7 @@ void BPlusTree<keyType, valueType, t, l>::MergeLeafNode(Ptr pos, BPlusTree::Leaf
             target_node.values[i] = tmp.values[i - l + 1];
         }
         target_node.next_leaf = tmp.next_leaf;
-        WriteLeafNode(target_node, pos);
+        file_leaf.WritePage(target_node, pos);
         file_leaf.DumpPage(brother); // tmp(brother)进垃圾桶
     }
     else {
@@ -550,15 +514,14 @@ void BPlusTree<keyType, valueType, t, l>::MergeLeafNode(Ptr pos, BPlusTree::Leaf
             tmp.values[i] = target_node.values[i - l];
         }
         tmp.next_leaf = target_node.next_leaf;
-        WriteLeafNode(tmp, brother);
+        file_leaf.WritePage(tmp, brother);
         file_leaf.DumpPage(pos); // target_node进垃圾桶
     }
 }
 
 template <typename keyType, typename valueType, int t, int l>
 void BPlusTree<keyType, valueType, t, l>::MergeNode(Ptr pos, BPlusTree::node target_node, Ptr brother, int sign, const keyType &fa) {
-    node tmp;
-    ReadNode(tmp, brother);
+    node tmp = file_node.ReadPage(brother);
     if (sign == 1) {
         target_node.key_num = 2 * t;
         target_node.keys[t] = fa;
@@ -567,7 +530,7 @@ void BPlusTree<keyType, valueType, t, l>::MergeNode(Ptr pos, BPlusTree::node tar
             target_node.keys[i] = tmp.keys[i - t];
             target_node.sons[i] = tmp.sons[i - t];
         }
-        WriteNode(target_node, pos);
+        file_node.WritePage(target_node, pos);
         file_node.DumpPage(brother);
     }
     else {
@@ -578,7 +541,7 @@ void BPlusTree<keyType, valueType, t, l>::MergeNode(Ptr pos, BPlusTree::node tar
             tmp.keys[i] = target_node.keys[i - t - 1];
             tmp.sons[i] = target_node.sons[i - t - 1];
         }
-        WriteNode(tmp, brother);
+        file_node.WritePage(tmp, brother);
         file_node.DumpPage(pos);
     }
 }
@@ -587,8 +550,7 @@ template <typename keyType, typename valueType, int t, int l>
 void BPlusTree<keyType, valueType, t, l>::remove(const keyType &key) {
     if (root == -1) return;
     if (root_is_leaf) {
-        LeafNode tmp;
-        ReadLeafNode(tmp, root);
+        LeafNode tmp = file_leaf.ReadPage(root);
         std::pair<int, bool> res = FindKey(tmp.keys, tmp.key_num, key);
         if (!res.second) return;
         --tmp.key_num;
@@ -601,7 +563,7 @@ void BPlusTree<keyType, valueType, t, l>::remove(const keyType &key) {
             tmp.keys[i] = tmp.keys[i + 1];
             tmp.values[i] = tmp.values[i + 1];
         }
-        WriteLeafNode(tmp, root);
+        file_leaf.WritePage(tmp, root);
         return;
     }
     EraseFromNode(root, key);
