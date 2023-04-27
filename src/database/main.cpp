@@ -1,4 +1,4 @@
-#include "bpt.h"
+#include "BPlusTree.h"
 
 bool comp(const MyPair &a, const MyPair &b) {
     return a.k < b.k;
@@ -32,7 +32,7 @@ int main() {
 //    std::cout << sizeof(bool) << std::endl;
 //    std::cout << sizeof(MyPair) << std::endl;
 
-    BPlusTree<MyPair, int, 2, 2> b("file");
+    BPlusTree<MyPair, int, 27, 27> b("bpt_file1", "bpt_file2", "bpt_file3");
     int n;
     std::cin >> n;
     std::string instruction;
@@ -58,6 +58,7 @@ int main() {
                 }
                 printf("\n");
             }
+//            b.print();
         }
 //        std::cout << i << std::endl;
 //        b.print();

@@ -1,11 +1,12 @@
 
-#ifndef TICKETSYSTEM_BPT_H
-#define TICKETSYSTEM_BPT_H
+#ifndef TICKETSYSTEM_BPLUSTREE_H
+#define TICKETSYSTEM_BPLUSTREE_H
 
 #include <fstream>
 #include "../utilis/vector.hpp"
 #include <string>
 #include <iostream>
+#include "FileSystem.h"
 
 using Ptr = int;
 
@@ -78,11 +79,14 @@ private:
         valueType values[2 * l + 2];
     };
 
-    std::fstream file;
+    std::fstream file_inherit;
+    FileSystem<node, 100> file_node;
+    FileSystem<LeafNode, 100> file_leaf;
     Ptr root;
     bool root_is_leaf;
 
-    // todo 调用前可能要考虑写到垃圾桶里？（如果是写一个全新的节点）（没有垃圾桶的话是写在文件末尾）
+    // todo 把外壳删了
+
     /*
      * 返回写下的那个块的起始位置
      * pos == -1表示在末尾写
@@ -91,7 +95,6 @@ private:
     Ptr WriteNode(const node &tmp, const Ptr &pos);
 
     // ! 直接引用传参
-    // todo 调用前可能要考虑去缓存找一下
     void ReadNode(node &tmp, const Ptr &pos);
     void ReadLeafNode(LeafNode &tmp, const Ptr &pos);
 
@@ -193,7 +196,7 @@ private:
 
 public:
 
-    explicit BPlusTree(const std::string &file_name);
+    explicit BPlusTree(const std::string &file_name_inherit, const std::string &file_name_node, const std::string &file_name_leaf);
     ~BPlusTree();
 
     /*
@@ -226,4 +229,4 @@ public:
     void print();
 };
 
-#endif //TICKETSYSTEM_BPT_H
+#endif //TICKETSYSTEM_BPLUSTREE_H

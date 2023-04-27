@@ -1,70 +1,61 @@
-#include "bpt.h"
+#include "BPlusTree.h"
+
+template class BPlusTree<MyPair, int, 2, 2>;
+template class BPlusTree<MyPair, int, 27, 27>;
+//template class BPlusTree<String, int, 2, 2>;
+//template class BPlusTree<int, int, 2, 2>;
 
 template <typename keyType, typename valueType, int t, int l>
-BPlusTree<keyType, valueType, t, l>::BPlusTree(const std::string &file_name) {
-    file.open(file_name, std::ifstream::in | std::fstream::out | std::ifstream::binary);
-    if (file.good()) { // 文件存在 需要读入
-        file.seekg(std::ios::beg);
-        file.read(reinterpret_cast<char *> (&root), sizeof(Ptr));
-        file.read(reinterpret_cast<char *> (&root_is_leaf), sizeof(bool));
+BPlusTree<keyType, valueType, t, l>::BPlusTree(const std::string &file_name_inherit,
+                                               const std::string &file_name_node,
+                                               const std::string &file_name_leaf)
+                                               : file_node(file_name_node), file_leaf(file_name_leaf) {
+    file_inherit.open(file_name_inherit, std::ifstream::in | std::fstream::out | std::ifstream::binary);
+    if (file_inherit.good()) { // 文件存在 需要读入
+        file_inherit.seekg(std::ios::beg);
+        file_inherit.read(reinterpret_cast<char *> (&root), sizeof(Ptr));
+        file_inherit.read(reinterpret_cast<char *> (&root_is_leaf), sizeof(bool));
     }
     else { // 文件不存在，要创建一个
         root = -1;
         root_is_leaf = true;
-        file.close();
-        file.clear();
-        file.open(file_name,std::fstream::app | std::fstream::binary);
-        file.close();
-        file.clear();
-        file.open(file_name,std::fstream::in | std::fstream::out | std::fstream::binary);
+        file_inherit.close();
+        file_inherit.clear();
+        file_inherit.open(file_name_inherit,std::fstream::app | std::fstream::binary);
+        file_inherit.close();
+        file_inherit.clear();
+        file_inherit.open(file_name_inherit,std::fstream::in | std::fstream::out | std::fstream::binary);
     }
 }
 
 template <typename keyType, typename valueType, int t, int l>
 BPlusTree<keyType, valueType, t, l>::~BPlusTree() {
-    file.seekp(std::ios::beg);
-    file.write(reinterpret_cast<const char *> (&root), sizeof(Ptr));
-    file.write(reinterpret_cast<const char *> (&root_is_leaf), sizeof(bool));
-    file.close();
-    file.clear();
+    file_inherit.seekp(std::ios::beg);
+    file_inherit.write(reinterpret_cast<const char *> (&root), sizeof(Ptr));
+    file_inherit.write(reinterpret_cast<const char *> (&root_is_leaf), sizeof(bool));
+    file_inherit.close();
+    file_inherit.clear();
+    // ? 需要显式调用FileSystem析构函数吗
 }
 
 template <typename keyType, typename valueType, int t, int l>
 Ptr BPlusTree<keyType, valueType, t, l>::WriteLeafNode(const BPlusTree::LeafNode &tmp, const Ptr &pos) {
-    if (pos == -1) {
-        file.seekp(0, std::ios::end);
-        Ptr ans = file.tellp();
-        file.write(reinterpret_cast<const char *> (&tmp), sizeof(LeafNode));
-        return ans;
-    }
-    file.seekp(pos);
-    file.write(reinterpret_cast<const char *> (&tmp), sizeof(LeafNode));
-    return pos;
+    return file_leaf.WritePage(tmp, pos);
 }
 
 template <typename keyType, typename valueType, int t, int l>
 Ptr BPlusTree<keyType, valueType, t, l>::WriteNode(const BPlusTree::node &tmp, const Ptr &pos) {
-    if (pos == -1) {
-        file.seekp(0, std::ios::end);
-        Ptr ans = file.tellp();
-        file.write(reinterpret_cast<const char *> (&tmp), sizeof(node));
-        return ans;
-    }
-    file.seekp(pos);
-    file.write(reinterpret_cast<const char *> (&tmp), sizeof(node));
-    return pos;
+    return file_node.WritePage(tmp, pos);
 }
 
 template <typename keyType, typename valueType, int t, int l>
 void BPlusTree<keyType, valueType, t, l>::ReadNode(BPlusTree::node &tmp, const Ptr &pos) {
-    file.seekg(pos);
-    file.read(reinterpret_cast<char *> (&tmp), sizeof(node));
+    tmp = file_node.ReadPage(pos);
 }
 
 template <typename keyType, typename valueType, int t, int l>
 void BPlusTree<keyType, valueType, t, l>::ReadLeafNode(BPlusTree::LeafNode &tmp, const Ptr &pos) {
-    file.seekg(pos);
-    file.read(reinterpret_cast<char *> (&tmp), sizeof(LeafNode));
+    tmp = file_leaf.ReadPage(pos);
 }
 
 template <typename keyType, typename valueType, int t, int l>
@@ -193,8 +184,7 @@ void BPlusTree<keyType, valueType, t, l>::insert(const keyType &key, const value
         tmp.keys[1] = key;
         tmp.values[1] = value;
         tmp.key_num = 1;
-        root = sizeof(Ptr) + sizeof(bool);
-        WriteLeafNode(tmp, root);
+        root = WriteLeafNode(tmp, -1);
         root_is_leaf = true;
         return;
     }
@@ -432,7 +422,7 @@ std::pair<bool, std::pair<typename BPlusTree<keyType, valueType, t, l>::node, ke
     }
     // 前面发生并块了，删除delete_index对应的key和son
     if (pos == root &&  delete_index > 0 && tmp.key_num == 1) {
-        // todo root进垃圾桶
+        file_node.DumpPage(root); // root进垃圾桶
         // ! 换根 重置root_is_leaf
         if (delete_index == find_res.first + 1) root = next;
         else root = elder;
@@ -551,7 +541,7 @@ void BPlusTree<keyType, valueType, t, l>::MergeLeafNode(Ptr pos, BPlusTree::Leaf
         }
         target_node.next_leaf = tmp.next_leaf;
         WriteLeafNode(target_node, pos);
-        // todo tmp(brother)进垃圾桶
+        file_leaf.DumpPage(brother); // tmp(brother)进垃圾桶
     }
     else {
         tmp.key_num = 2 * l - 1;
@@ -561,7 +551,7 @@ void BPlusTree<keyType, valueType, t, l>::MergeLeafNode(Ptr pos, BPlusTree::Leaf
         }
         tmp.next_leaf = target_node.next_leaf;
         WriteLeafNode(tmp, brother);
-        // todo target_node进垃圾桶
+        file_leaf.DumpPage(pos); // target_node进垃圾桶
     }
 }
 
@@ -578,7 +568,7 @@ void BPlusTree<keyType, valueType, t, l>::MergeNode(Ptr pos, BPlusTree::node tar
             target_node.sons[i] = tmp.sons[i - t];
         }
         WriteNode(target_node, pos);
-        // todo tmp进垃圾桶
+        file_node.DumpPage(brother);
     }
     else {
         tmp.key_num = 2 * t;
@@ -589,7 +579,7 @@ void BPlusTree<keyType, valueType, t, l>::MergeNode(Ptr pos, BPlusTree::node tar
             tmp.sons[i] = target_node.sons[i - t - 1];
         }
         WriteNode(tmp, brother);
-        // todo target_node进垃圾桶
+        file_node.DumpPage(pos);
     }
 }
 
@@ -603,6 +593,7 @@ void BPlusTree<keyType, valueType, t, l>::remove(const keyType &key) {
         if (!res.second) return;
         --tmp.key_num;
         if (tmp.key_num == 0) {
+            file_leaf.DumpPage(root);
             root = -1;
             return;
         }
@@ -615,8 +606,3 @@ void BPlusTree<keyType, valueType, t, l>::remove(const keyType &key) {
     }
     EraseFromNode(root, key);
 }
-
-template class BPlusTree<MyPair, int, 2, 2>;
-template class BPlusTree<MyPair, int, 27, 27>;
-//template class BPlusTree<String, int, 2, 2>;
-//template class BPlusTree<int, int, 2, 2>;
