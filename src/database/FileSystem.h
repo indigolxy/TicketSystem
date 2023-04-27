@@ -2,6 +2,7 @@
 #define TICKETSYSTEM_FILESYSTEM_H
 
 #include <fstream>
+#include <unordered_map>
 #include "../utilis/vector.hpp"
 #include "../utilis/LinkedHashMap.h"
 
@@ -21,7 +22,8 @@ private:
         node(const page &data_, const Ptr &pos_, node *prev, node *next) : data(data_), pos(pos_), pre(prev), nxt(next) {}
     };
     std::fstream file;
-    LinkedHashMap<node *, m> unordered_map;
+    std::unordered_map<int, node *> Map;
+//    LinkedHashMap<node *, m> unordered_map;
     node *head;
     node *tail;
     int size;
@@ -33,7 +35,8 @@ private:
         node *tmp = tail->pre;
         file.seekp(tmp->pos);
         file.write(reinterpret_cast<char *> (&tmp->data), size_of_page);
-        unordered_map.EraseValueAt(tmp->pos / size_of_page);
+        Map[tmp->pos / size_of_page] = nullptr;
+//        unordered_map.EraseValueAt(tmp->pos / size_of_page);
         tmp->pre->nxt = tail;
         tail->pre = tmp->pre;
         delete tmp;
@@ -48,7 +51,8 @@ private:
         head->nxt->pre = tmp;
         head->nxt = tmp;
         ++size;
-        unordered_map.SetValueAt(pos / size_of_page, tmp);
+        Map[pos / size_of_page] = tmp;
+//        unordered_map.SetValueAt(pos / size_of_page, tmp);
     }
 
     // * 如果已经是队头，什么都不做
@@ -94,11 +98,16 @@ public:
 
 
     page ReadPage(Ptr pos) {
-        std::pair<node *, bool> tmp = unordered_map.FindValueAt(pos / size_of_page);
-        if (tmp.second) {
-            CacheMoveToFront(tmp.first);
-            return tmp.first->data;
+        node *tmp = Map[pos / size_of_page];
+        if (tmp) {
+            CacheMoveToFront(tmp);
+            return tmp->data;
         }
+//        std::pair<node *, bool> tmp = unordered_map.FindValueAt(pos / size_of_page);
+//        if (tmp.second) {
+//            CacheMoveToFront(tmp.first);
+//            return tmp.first->data;
+//        }
         file.seekg(pos);
         page new_page;
         file.read(reinterpret_cast<char *> (&new_page), size_of_page);
@@ -117,11 +126,16 @@ public:
                 recycle_bin.pop_back();
             }
         }
-        std::pair<node *, bool> tmp = unordered_map.FindValueAt(pos / size_of_page);
-        if (tmp.second) {
-            tmp.first->data = obj;
-            CacheMoveToFront(tmp.first);
+        node *tmp = Map[pos / size_of_page];
+        if (tmp) {
+            tmp->data = obj;
+            CacheMoveToFront(tmp);
         }
+//        std::pair<node *, bool> tmp = unordered_map.FindValueAt(pos / size_of_page);
+//        if (tmp.second) {
+//            tmp.first->data = obj;
+//            CacheMoveToFront(tmp.first);
+//        }
         else {
             CacheAddPage(obj, pos);
         }
