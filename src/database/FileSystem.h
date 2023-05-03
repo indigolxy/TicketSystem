@@ -3,8 +3,8 @@
 
 #include <fstream>
 //#include <unordered_map>
-#include "../utilis/vector.hpp"
-#include "../utilis/LinkedHashMap.h"
+#include "../utils/vector.hpp"
+#include "../utils/LinkedHashMap.h"
 
 using Ptr = int;
 

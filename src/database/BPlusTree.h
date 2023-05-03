@@ -3,16 +3,16 @@
 #define TICKETSYSTEM_BPLUSTREE_H
 
 #include <fstream>
-#include "../utilis/vector.hpp"
+#include "../utils/vector.hpp"
 #include <string>
 #include <iostream>
 #include "FileSystem.h"
 
 using Ptr = int;
 
-constexpr int MAXBits = 64;
+template <int MAXBits>
 struct String {
-    char data[MAXBits] = {0};
+    char data[MAXBits + 1] = {0};
 
     String() = default;
     String(const std::string &s) {
@@ -35,11 +35,12 @@ struct String {
     }
 };
 
+template <int MAXBits>
 struct MyPair {
-    String k;
+    String<MAXBits> k;
     int v;
 public:
-    MyPair(const String &key, int value) : k(key), v(value) {}
+    MyPair(const String<MAXBits> &key, int value) : k(key), v(value) {}
     MyPair() : k(), v(0) {}
 
     bool operator==(const MyPair &other) const {
@@ -56,7 +57,7 @@ public:
     }
 };
 
-template <typename keyType, typename valueType, int t, int l>
+template <typename keyType, typename valueType, int t = 27, int l = 27>
 class BPlusTree {
 private:
     class node {
@@ -153,12 +154,13 @@ private:
      * pos为需要删除的叶子节点对应的读写位置
      * 删除键值对，如果删的是第一个（上方有相同key）再回溯时需要更新对应key为删除后节点的第一个key
      * 故返回的最后一个参数为keys[1]
-     * 如果不需要借儿子或并块，直接写回文件并返回{false, ^}
-     * 否则返回{true, LeafNode}即已经删掉该键值对的叶节点
+     * 如果要删除的结点不存在，返回{-1, ^}
+     * 如果不需要借儿子或并块，直接写回文件并返回{0, ^}
+     * 否则返回{1, LeafNode}即已经删掉该键值对的叶节点
      */
-    std::pair<bool, std::pair<LeafNode, keyType>> EraseFromLeafNode(Ptr pos, const keyType &key);
+    std::pair<int, std::pair<LeafNode, keyType>> EraseFromLeafNode(Ptr pos, const keyType &key);
 
-    std::pair<bool, std::pair<node, keyType>> EraseFromNode(Ptr pos, const keyType &key);
+    std::pair<int, std::pair<node, keyType>> EraseFromNode(Ptr pos, const keyType &key);
 
     /*
      * 尝试对target_node借儿子 (如果没有哥哥or弟弟，传入Ptr为-1)
@@ -187,18 +189,18 @@ public:
 
     /*
      * 数据需保证key不重复
-     * 如果key已经存在，就什么都不做
+     * 如果key已经存在，就什么都不做，并返回false（insert失败）
      * 没有送养
      * 只有发生裂块才需要更新父节点的keys（新增一个key和son），单纯插入不需要修改父节点的keys
      */
-    void insert(const keyType &key, const valueType &value);
+    bool insert(const keyType &key, const valueType &value);
 
     /*
-     * 如果不存在这一key，什么都不做
+     * 如果不存在这一key，什么都不做，并返回false（remove失败）
      * 有借儿子和并块
      * 如果删的是某一叶节点的第一个key，要修改上方对应key值
      */
-    void remove(const keyType &key);
+    bool remove(const keyType &key);
 
     /*
      * 通过Compare比较key值进行查找

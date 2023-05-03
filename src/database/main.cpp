@@ -1,6 +1,6 @@
 #include "BPlusTree.h"
 
-bool comp(const MyPair &a, const MyPair &b) {
+bool comp(const MyPair<64> &a, const MyPair<64> &b) {
     return strcmp(a.k.data, b.k.data) < 0;
 }
 
@@ -32,7 +32,7 @@ int main() {
 //    std::cout << sizeof(bool) << std::endl;
 //    std::cout << sizeof(MyPair) << std::endl;
 
-    BPlusTree<MyPair, int, 27, 27> b("bpt_file1", "bpt_file2", "bpt_file3");
+    BPlusTree<MyPair<64>, int, 27, 27> b("bpt_file1", "bpt_file2", "bpt_file3");
     int n;
     std::cin >> n;
     std::string instruction;
