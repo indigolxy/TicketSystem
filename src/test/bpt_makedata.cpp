@@ -1,6 +1,6 @@
 #include <iostream>
 #include <random>
-#include "../utilis/vector.hpp"
+#include "../utils/vector.hpp"
 
 int main() {
     std::default_random_engine e;
