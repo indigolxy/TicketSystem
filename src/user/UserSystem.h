@@ -18,11 +18,12 @@ private:
     char name[NameMAXLEN + 5];
     char mail_addr[MailAddrMAXLEN + 5];
     int privilege;
-    bool logged_in;
+    bool logged_in = false;
 };
 
 class UserSystem {
 private:
+    // todo 块长
     BPlusTree<String<UserNameMAXLEN>, UserInfo> user_map;
 
 public:
