@@ -1,4 +1,5 @@
 #include "BPlusTree.h"
+#include "../UserSystem.h"
 
 bool comp(const MyPair<64> &a, const MyPair<64> &b) {
     return strcmp(a.k.data, b.k.data) < 0;

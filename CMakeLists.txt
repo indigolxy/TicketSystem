@@ -5,5 +5,4 @@ set(CMAKE_CXX_STANDARD 14)
 
 add_executable(code src/database/main.cpp
         src/database/BPlusTree.cpp
-        src/user/UserSystem.cpp
         )
