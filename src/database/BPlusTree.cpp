@@ -265,8 +265,7 @@ Ptr BPlusTree<keyType, valueType, t, l>::FindinNode(Ptr pos, const keyType &key,
     node tmp = file_node.ReadPage(pos);
     int res = FindFirstKey(tmp.keys, tmp.key_num, key, comp).first;
     if (tmp.son_is_leaf) return tmp.sons[res];
-    Ptr ans = FindinNode(tmp.sons[res], key, comp);
-    return ans;
+    return FindinNode(tmp.sons[res], key, comp);
 }
 
 template <typename keyType, typename valueType, int t, int l>
@@ -570,4 +569,31 @@ bool BPlusTree<keyType, valueType, t, l>::remove(const keyType &key) {
     }
     if (EraseFromNode(root, key).first == -1) return false;
     return true;
+}
+
+template <typename keyType, typename valueType, int t, int l>
+std::pair<bool, valueType> BPlusTree<keyType, valueType, t, l>::FindModify(const keyType &key, bool need_modify, const valueType &value) {
+    // 空树
+    if (root == -1) return {false, valueType()};
+    if (root_is_leaf) return FindModifyInLeafNode(root, key, need_modify, value);
+    return FindModifyInLeafNode(FindModifyInNode(root, key), key, need_modify, value);
+}
+
+template <typename keyType, typename valueType, int t, int l>
+std::pair<bool, valueType> BPlusTree<keyType, valueType, t, l>::FindModifyInLeafNode(Ptr pos, const keyType &key, bool need_modify, const valueType &value) {
+    LeafNode tmp = file_leaf.ReadPage(pos);
+    std::pair<int, bool> res = FindKey(tmp.keys, tmp.key_num, key);
+    if (!res.second) return {false, valueType()}; // 没找到
+    if (!need_modify) return {true, tmp.values[res.first]};
+    tmp.values[res.first] = value;
+    file_leaf.WritePage(tmp, pos);
+    return {true, value};
+}
+
+template <typename keyType, typename valueType, int t, int l>
+Ptr BPlusTree<keyType, valueType, t, l>::FindModifyInNode(Ptr pos, const keyType &key) {
+    node tmp = file_node.ReadPage(pos);
+    int res = FindKey(tmp.keys, tmp.key_num, key).first;
+    if (tmp.son_is_leaf) return tmp.sons[res];
+    return FindinNode(tmp.sons[res], key);
 }

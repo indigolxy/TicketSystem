@@ -20,6 +20,9 @@ struct String {
             data[i] = s[i];
         }
     }
+    String(const char *s) {
+        strcpy(data, s);
+    }
     bool operator==(const String &other) const {
         return (strcmp(data, other.data) == 0);
     }
@@ -56,6 +59,11 @@ public:
         return os;
     }
 };
+
+template <int MAXBits>
+bool String_comp(const String<MAXBits> &a, const String<MAXBits> &b) {
+    return (strcmp(a.data, b.data) < 0);
+}
 
 template <typename keyType, typename valueType, int t = 27, int l = 27>
 class BPlusTree {
@@ -182,6 +190,10 @@ private:
 
     void MergeNode(Ptr pos, node target_node, Ptr brother, int sign, const keyType &fa);
 
+    std::pair<bool, valueType> FindModifyInLeafNode(Ptr pos, const keyType &key, bool need_modify, const valueType &value = valueType());
+
+    Ptr FindModifyInNode(Ptr pos, const keyType &key);
+
 public:
 
     explicit BPlusTree(const std::string &file_name_inherit, const std::string &file_name_node, const std::string &file_name_leaf);
@@ -209,12 +221,18 @@ public:
      * （得到的value是升序的）
      */
     sjtu::vector<valueType> find(const keyType &key, bool (*comp)(const keyType &, const keyType &));
-
     /*
      * 用于调试，输出整颗树
      * 每个结点一行，输出keys和sons or values
      */
     void print();
+
+    /*
+     * 单一键值的修改or查找
+     * 如果不需要修改，单一查找，若找不到返回false，否则返回true和对应value
+     * 如果需要修改，找到后进行修改，返回true和传入的value，找不到返回false
+     */
+    std::pair<bool, valueType> FindModify(const keyType &key, bool need_modify, const valueType &value = valueType());
 };
 
 #endif //TICKETSYSTEM_BPLUSTREE_H

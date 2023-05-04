@@ -18,18 +18,31 @@ private:
     char name[NameMAXLEN + 5];
     char mail_addr[MailAddrMAXLEN + 5];
     int privilege;
-    bool logged_in = false;
+    bool logged_in;
+
+public:
+    UserInfo(const char *u, const char *p, const char *n, const char *m, int pri, bool log = false) {
+        strcpy(user_name, u);
+        strcpy(password, p);
+        strcpy(name, n);
+        strcpy(mail_addr, m);
+        privilege = pri;
+        logged_in = log;
+    }
 };
 
 class UserSystem {
 private:
     // todo 块长
     BPlusTree<String<UserNameMAXLEN>, UserInfo> user_map;
+    int user_num;
 
 public:
-    UserSystem() : user_map("user_file1", "user_file2", "user_file3") {}
+    UserSystem() : user_map("user_file1", "user_file2", "user_file3"), user_num(0) {}
 
+    bool AddUser(const char *c, const char *u, const char *p, const char *n, const char *m, int g);
 
+    bool Login(const char *u, const char *p);
 };
 
 #endif //TICKETSYSTEM_USERSYSTEM_H
