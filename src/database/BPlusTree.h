@@ -71,7 +71,6 @@ private:
     class node {
         friend class BPlusTree;
         int key_num = 0;
-//        Ptr parent = -1;
         bool son_is_leaf = true;
         keyType keys[2 * t + 2];
         Ptr sons[2 * t + 2] = {-1};
@@ -81,8 +80,6 @@ private:
         friend class BPlusTree;
         int key_num = 0;
         Ptr next_leaf = -1;
-//        Ptr pre_leaf = -1;
-//        Ptr parent = -1;
         keyType keys[2 * l + 2];
         valueType values[2 * l + 2];
     };

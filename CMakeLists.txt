@@ -3,7 +3,8 @@ project(TicketSystem)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(code src/database/main.cpp
+add_executable(code src/main.cpp
         src/database/BPlusTree.cpp
         src/TrainSystem.cpp
+        src/TicketSystem.cpp
         )

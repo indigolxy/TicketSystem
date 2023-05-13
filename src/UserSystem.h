@@ -12,6 +12,8 @@ constexpr int NameMAXLEN = 5 * 3;
 
 class UserInfo {
     friend class UserSystem;
+    friend class TicketSystem;
+
 private:
     char user_name[UserNameMAXLEN + 5];
     char password[PassWordMAXLEN + 5];
@@ -19,10 +21,11 @@ private:
     char mail_addr[MailAddrMAXLEN + 5];
     int privilege;
     bool logged_in = false;
+    int order_num = 0; // 1-based
 
 public:
     UserInfo() = default;
-    UserInfo(const char *u, const char *p, const char *n, const char *m, int pri, bool log = false) {
+    UserInfo(const char *u, const char *p, const char *n, const char *m, int pri, bool log = false) : order_num(0) {
         strcpy(user_name, u);
         strcpy(password, p);
         strcpy(name, n);
@@ -30,15 +33,19 @@ public:
         privilege = pri;
         logged_in = log;
     }
-    UserInfo(const UserInfo &other) : privilege(other.privilege), logged_in(other.logged_in) {
+    UserInfo(const UserInfo &other) : privilege(other.privilege), logged_in(other.logged_in), order_num(other.order_num) {
         strcpy(user_name, other.user_name);
         strcpy(password, other.password);
         strcpy(name, other.name);
         strcpy(mail_addr, other.mail_addr);
     }
+    friend std::ostream &operator<<(std::ostream &os, const UserInfo &obj) {
+        os << obj.user_name << ' ' << obj.name << ' ' << obj.mail_addr << ' '  << obj.privilege << '\n';
+    }
 };
 
 class UserSystem {
+    friend class TicketSystem;
 private:
     // todo 块长
     BPlusTree<String<UserNameMAXLEN>, UserInfo> user_map;
@@ -53,7 +60,14 @@ private:
     }
 
 public:
-    UserSystem() : user_map("user_file1", "user_file2", "user_file3"), user_num(0) {}
+    UserSystem(const std::string &user_system) : user_map(user_system + "1", user_system + "2", user_system + "3"), user_num(0) {}
+
+    std::pair<int, UserInfo> CheckUserGetOrder(const char *u) {
+        std::pair<bool, UserInfo> res = user_map.FindModify(u, false);
+        if (!res.first) return {-1, UserInfo()}; // user doesn't exist
+        if (!res.second.logged_in) return {-1, UserInfo()}; // user hasn't logged in
+        return {res.second.order_num, res.second};
+    }
 
     bool AddUser(const char *c, const char *u, const char *p, const char *n, const char *m, int g) {
         if (user_num == 0) {
@@ -91,7 +105,7 @@ public:
     std::pair<bool, UserInfo> QueryProfile(const char *c, const char *u) {
         std::pair<bool, UserInfo> res_u = user_map.FindModify(String<UserNameMAXLEN> (u), false);
         if (!res_u.first) return {false, UserInfo()}; // user doesn't exist
-        if (!CheckCurrentUser(c, res_u.second.privilege)) return {false, UserInfo()};
+        if (!CheckCurrentUser(c, res_u.second.privilege + 1) && strcmp(c, u) != 0) return {false, UserInfo()};
         return {true, res_u.second};
     }
 

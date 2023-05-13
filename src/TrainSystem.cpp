@@ -267,3 +267,15 @@ std::pair<bool, std::pair<Ticket, Ticket>> TrainSystem::CheckTrainStations(int l
 
     return {has_ans, ans};
 }
+
+std::pair<bool, TrainInfo> TrainSystem::GetTrain(const char *id) {
+    std::pair<bool, TrainInfo> target_train = train_id_info_map.FindModify(id, false);
+    if (!target_train.first) return {false, TrainInfo()};
+    if (!target_train.second.released) return {false, TrainInfo()};
+    return {true, target_train.second};
+}
+
+TrainSystem::TrainSystem(const std::string &train_system) : station_train_map(train_system + "1.1", train_system + "1.2", train_system + "1.3"),
+                                                     train_id_info_map(train_system + "2.1", train_system + "2.2", train_system + "2.3"),
+                                                     seats_day_file(train_system + "3"),
+                                                     seats_waiting_list_day_file(train_system + "4") {}

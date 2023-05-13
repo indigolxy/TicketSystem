@@ -2,8 +2,6 @@
 #ifndef TICKETSYSTEM_TRAINSYSTEM_H
 #define TICKETSYSTEM_TRAINSYSTEM_H
 
-#include "database/FileSystem.h"
-#include "database/BPlusTree.h"
 #include "UserSystem.h"
 
 constexpr int TrainIDMAXLEN = 20;
@@ -19,6 +17,7 @@ class TrainInfo;
 class SeatsDay {
     friend class TrainSystem;
     friend class Ticket;
+    friend class TicketSystem;
 
 private:
     int seats[StationNumMAX + 1] = {0};
@@ -38,18 +37,23 @@ public:
 };
 
 class WaitingOrder {
+    friend class TicketSystem;
 private:
-    int leave_station;
-    int arrive_station;
+    int leave_index;
+    int arrive_index;
     int num;
     char user_name[UserNameMAXLEN + 5];
     int no;
 
 public:
     WaitingOrder() = default;
+    WaitingOrder(int leave, int arrive, int n, const char *u, int noo) : leave_index(leave), arrive_index(arrive), num(n), no(noo) {
+        strcpy(user_name, u);
+    }
 };
 
 class SeatsWaitingListDay {
+    friend class TicketSystem;
 private:
     WaitingOrder waiting_orders[WaitingNumMAX + 1];
     int max_index = -1; // 目前优先级最低的waiting_order的下标
@@ -93,6 +97,9 @@ class TrainInfo {
     friend class TrainSystem;
     friend class TrainStation;
     friend class Ticket;
+    friend class TicketSystem;
+    friend class Order;
+
 private:
     char train_id[TrainIDMAXLEN + 5];
     int station_num;
@@ -113,6 +120,7 @@ public:
 };
 
 class TrainSystem {
+    friend class TicketSystem;
 private:
     BPlusTree<std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>>, TrainStation> station_train_map;
     BPlusTree<String<TrainIDMAXLEN>, TrainInfo> train_id_info_map;
@@ -131,6 +139,8 @@ private:
                                                                   const TrainInfo &leave_train, const TrainInfo &arrive_train);
 
 public:
+    TrainSystem(const std::string &train_system);
+
     bool AddTrain(const char *id, int n, int m, const char *s[StationNumMAX + 1], int p[StationNumMAX + 1],
                   int x, int t[StationNumMAX + 1], int o[StationNumMAX + 1], int d1, int d2, char y);
 
@@ -144,6 +154,9 @@ public:
     sjtu::vector<Ticket> QueryTicket(int d, const char *s, const char *t, bool key_is_time);
 
     std::pair<bool, std::pair<Ticket, Ticket>> QueryTransfer(int d, const char *s, const char *t, bool key_is_time);
+
+    // * 检查train是否已经发布，若失败返回false
+    std::pair<bool, TrainInfo> GetTrain(const char *id);
 };
 
 #endif //TICKETSYSTEM_TRAINSYSTEM_H

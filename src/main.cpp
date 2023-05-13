@@ -1,10 +1,11 @@
-#include "BPlusTree.h"
-#include "../UserSystem.h"
-#include "../TrainSystem.h"
+#include "database/BPlusTree.h"
+#include "TicketSystem.h"
 
+/*
 bool comp(const MyPair<64> &a, const MyPair<64> &b) {
     return strcmp(a.k.data, b.k.data) < 0;
 }
+ */
 
 int main() {
     /*
@@ -28,11 +29,6 @@ int main() {
         }
     }
     //    a.find({1, 0}, comp).print();
-
-    */
-//    std::cout << sizeof(int) << std::endl;
-//    std::cout << sizeof(bool) << std::endl;
-//    std::cout << sizeof(MyPair) << std::endl;
 
     BPlusTree<MyPair<64>, int, 27, 27> b("bpt_file1", "bpt_file2", "bpt_file3");
     int n;
@@ -65,6 +61,10 @@ int main() {
 //        std::cout << i << std::endl;
 //        b.print();
     }
-
+     */
+    TicketSystem ticket_system("order.file", "train.file", "user.file");
+    std::string cmd;
+    std::cin >> cmd;
+    ticket_system.AcceptMsg(cmd);
     return 0;
 }

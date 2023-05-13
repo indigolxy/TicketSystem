@@ -135,10 +135,10 @@ seats_day(Ptr)（该车次**该发车日期**对应的SeatsDay的读写位置）
 ## 操作
 ### buy_ticket(SF)
 1. 检查user已登录，并获取order_num, no = order_num + 1
-2. 去TrainSystem里拿到trianID对应的TrainInfo
-3. 检查train是否已经released，是否在当天有车次(失败return -1)
-4. 定义一个Order对象，遍历trainInfo获取-s/-t对应的int（若不存在-s,-t,return -1)
-5. 去TrainSystem里获取该车次该天的SeatsDay
+2. 去TrainSystem里拿到trianID对应的TrainInfo（检查train是否已经released）
+4. 遍历trainInfo获取-s/-t对应的int（若不存在-s,-t,return -1)
+5. 检查train是否在**当天**有车次(失败return -1)
+5. 定义一个Order对象，去TrainSystem里获取该车次该天的SeatsDay
 6. 若剩余seats足够，status = 1，去TrianSystem里更改SeatsDay
 7. 若剩余seats不够且不接受候补，购票失败，返回-1
 8. 若剩余seats不够且接受候补，status = 0，定义一个WaitingOrder对象，去TrainSystem里更改SeatsWaitingListsDay
@@ -159,6 +159,8 @@ seats_day(Ptr)（该车次**该发车日期**对应的SeatsDay的读写位置）
    更改SeatsDay完成补票，再根据{username, no}去bpt里把Order.status改为1(先find再Modify)，
    从SeatsWaitingList里去除已经补票的order
 7. 把SeatsDay和SeatsWaitingList写回TrainSystem
+### AcceptMsg
+读入一个string，完成切片并分别调用所需的函数，再完成输出
 
 # 有关bpt的使用
 1. insert和remove函数会返回一个bool表示是否插入/删除成功（即是否存在）
