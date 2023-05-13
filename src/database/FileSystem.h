@@ -8,7 +8,7 @@
 
 using Ptr = int;
 
-template <typename page, int m>
+template <typename page, int m = 100>
 class FileSystem {
 private:
     const int size_of_page = sizeof (page);
