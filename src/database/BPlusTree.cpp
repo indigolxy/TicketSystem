@@ -1,9 +1,14 @@
 #include "BPlusTree.h"
+#include "../TicketSystem.h"
+#include "../UserSystem.h"
+#include "../TrainSystem.h"
 
 template class BPlusTree<MyPair<64>, int, 2, 2>;
 template class BPlusTree<MyPair<64>, int, 27, 27>;
-//template class BPlusTree<String, int, 2, 2>;
-//template class BPlusTree<int, int, 2, 2>;
+template class BPlusTree<String<UserNameMAXLEN>, UserInfo, 27, 27>;
+template class BPlusTree<std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>>, TrainStation, 27, 27>;
+template class BPlusTree<String<TrainIDMAXLEN>, TrainInfo, 27, 27>;
+template class BPlusTree<std::pair<String<UserNameMAXLEN>, int>, Order, 27, 27>;
 
 template <typename keyType, typename valueType, int t, int l>
 BPlusTree<keyType, valueType, t, l>::BPlusTree(const std::string &file_name_inherit,
@@ -187,6 +192,7 @@ bool BPlusTree<keyType, valueType, t, l>::insert(const keyType &key, const value
     else return true;
 }
 
+/*
 template <typename keyType, typename valueType, int t, int l>
 void BPlusTree<keyType, valueType, t, l>::PrintLeafNode(Ptr pos) {
     LeafNode tmp = file_leaf.ReadPage(pos);
@@ -236,6 +242,7 @@ void BPlusTree<keyType, valueType, t, l>::print() {
     PrintNode(root);
     std::cout << std::endl;
 }
+ */
 
 template <typename keyType, typename valueType, int t, int l>
 std::pair<int, bool> BPlusTree<keyType, valueType, t, l>::FindFirstKey(const keyType *keys, int key_num, const keyType &key, bool (*comp)(const keyType &, const keyType &)) {
@@ -595,5 +602,5 @@ Ptr BPlusTree<keyType, valueType, t, l>::FindModifyInNode(Ptr pos, const keyType
     node tmp = file_node.ReadPage(pos);
     int res = FindKey(tmp.keys, tmp.key_num, key).first;
     if (tmp.son_is_leaf) return tmp.sons[res];
-    return FindinNode(tmp.sons[res], key);
+    return FindModifyInNode(tmp.sons[res], key);
 }

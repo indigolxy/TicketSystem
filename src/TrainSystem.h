@@ -135,8 +135,34 @@ private:
 
     static bool TicketPairCmp(const std::pair<Ticket, Ticket> &a, const std::pair<Ticket, Ticket> &b, bool key_is_time);
 
-    std::pair<bool, std::pair<Ticket, Ticket>> CheckTrainStations(int leave_index, int arrive_index, bool key_is_time, int leave_date,
-                                                                  const TrainInfo &leave_train, const TrainInfo &arrive_train);
+    std::pair<bool, std::pair<Ticket, Ticket>> CheckTrainStations(int leave_index, int arrive_index, bool key_is_time, int leave_date,const TrainInfo &leave_train, const TrainInfo &arrive_train);
+
+    static void Qsort(sjtu::vector<Ticket> &ans, int l, int r, bool key_is_time) {
+        if (l >= r) return;
+        int mid = Qdivide(ans, l, r, key_is_time);
+        Qsort(ans, l, mid - 1, key_is_time);
+        Qsort(ans, mid + 1, r, key_is_time);
+    }
+
+    static int Qdivide(sjtu::vector<Ticket> &ans, int l, int r, bool key_is_time) {
+        Ticket k = ans[l];
+        while (r > l) {
+            while (r > l && !TicketCmp(ans[r], k, key_is_time))
+                --r;
+            if (r > l) {
+                ans[l] = ans[r];
+                ++l;
+            }
+            while (r > l && !TicketCmp(k, ans[l],key_is_time))
+                ++l;
+            if (r > l) {
+                ans[r] = ans[l];
+                --r;
+            }
+        }
+        ans[l] = k;
+        return l;
+    }
 
 public:
     TrainSystem(const std::string &train_system);

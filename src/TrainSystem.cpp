@@ -1,6 +1,4 @@
 #include "TrainSystem.h"
-#include <algorithm>
-#include <vector>
 
 bool TrainSystem::AddTrain(const char *id, int n, int m, const char **s, int *p, int x, int *t, int *o, int d1, int d2,
                            char y) {
@@ -185,13 +183,7 @@ sjtu::vector<Ticket> TrainSystem::QueryTicket(int d, const char *s, const char *
     }
 
     if (ans.size() <= 1) return ans;
-
-    // todo sort
-//    std::vector<Ticket> std_ans;
-//    for (int i = 0; i < ans.size(); ++i) {
-//        std_ans.push_back(ans[i]);
-//    }
-    std::sort(ans.begin(), ans.end(), TicketCmp);
+    Qsort(ans, 0, ans.size() - 1, key_is_time);
 
     return ans;
 }

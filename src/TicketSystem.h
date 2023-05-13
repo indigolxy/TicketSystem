@@ -95,7 +95,7 @@ public:
 
     bool RefundTicket(const char *u, int n);
 
-    void AcceptMsg(std::string s);
+    void AcceptMsg(const std::string &s);
 };
 
 #endif //TICKETSYSTEM_TICKETSYSTEM_H

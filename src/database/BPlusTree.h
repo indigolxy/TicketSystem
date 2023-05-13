@@ -2,8 +2,6 @@
 #ifndef TICKETSYSTEM_BPLUSTREE_H
 #define TICKETSYSTEM_BPLUSTREE_H
 
-#include <fstream>
-#include "../utils/vector.hpp"
 #include <string>
 #include <iostream>
 #include "FileSystem.h"
@@ -90,8 +88,8 @@ private:
     Ptr root;
     bool root_is_leaf;
 
-    void PrintLeafNode(Ptr pos);
-    void PrintNode(Ptr pos);
+//    void PrintLeafNode(Ptr pos);
+//    void PrintNode(Ptr pos);
 
     /*
      * 二分查找keys中key的位置

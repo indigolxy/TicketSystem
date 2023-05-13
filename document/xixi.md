@@ -1,3 +1,13 @@
+#各文件的关系 
+## BPlusTree.h(.cpp)
+include: iostream, vector, string, FileSystem, fstream
+## UserSystem.h
+include: bpt
+## TrainSystem.h(.cpp)
+include: UserSystem
+## TicketSystem.h(.cpp)
+include: TrainSystem
+
 # UserSystem.h
 ## class
 ### UserInfo

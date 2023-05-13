@@ -85,6 +85,7 @@ bool TicketSystem::RefundTicket(const char *u, int n) {
 
     train_system.seats_day_file.WritePage(seats, order.seats_day);
     train_system.seats_waiting_list_day_file.WritePage(list, order.seats_waiting_list_day);
+    return true;
 }
 
 std::pair<std::pair<std::string, std::string>, sjtu::vector<std::string>> TicketSystem::GetTokens(const std::string &s) {
@@ -120,7 +121,7 @@ std::pair<std::pair<std::string, std::string>, sjtu::vector<std::string>> Ticket
     return {{time_stamp, cmd}, ans};
 }
 
-void TicketSystem::AcceptMsg(std::string s) {
+void TicketSystem::AcceptMsg(const std::string &s) {
     std::pair<std::pair<std::string, std::string>, sjtu::vector<std::string>> res = GetTokens(s);
     std::cout << res.first.first << ' ';
     std::string cmd = res.first.second;
