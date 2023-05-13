@@ -4,7 +4,7 @@ include: iostream, vector, string, FileSystem, fstream
 ## UserSystem.h
 include: bpt
 ## TrainSystem.h(.cpp)
-include: UserSystem
+include: UserSystem, DateTime, Command
 ## TicketSystem.h(.cpp)
 include: TrainSystem
 
@@ -68,7 +68,7 @@ type(char), sale_date_start/end(int)
 seats(Ptr), seats_waiting_lists(Ptr)（对应的文件中第一个(6/1)的SeatsDay/SeatsWaitingListsDay的位置）
 以下均为大小为MAXStaionNum + 5的数组，下标统一
 1. stations(10个汉字) *1 ~ station_num*
-2. prices(int) *1 ~ station_num - 1*
+2. prices(int) *1 ~ station_num* (prices[1] == 0)
 3. arriving_times(int) *2 ~ station_num* 
 4. leaving_times(int) *1 ~ station_num - 1* (leaving_times[1] == start_time)
 ### SeatsDay

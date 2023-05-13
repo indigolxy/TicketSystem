@@ -27,10 +27,17 @@ public:
         if (d < 61) return {7, d - 29};
         return {8, d - 60};
     }
-    int DateToInt() {
+    int DateToInt() const {
         if (month == 6) return day - 1;
         if (month == 7) return day + 29;
         return day + 60;
+    }
+    std::string DateToString() const {
+        std::string ans;
+        ans += std::to_string(month);
+        ans += "-";
+        ans += std::to_string(day);
+        return ans;
     }
 };
 
@@ -39,6 +46,7 @@ class Time {
     int minute;
 
 public:
+    Time() = default;
     Time(int hh, int mm) : hour(hh), minute(mm) {}
     Time(int t) : hour(t / 60), minute(t % 60) {}
     static Time IntToTime(int t) {
@@ -46,6 +54,13 @@ public:
     }
     int TimeToInt() {
         return hour * 60 + minute;
+    }
+    std::string TimeToString() const {
+        std::string ans;
+        ans += std::to_string(hour);
+        ans += ":";
+        ans += std::to_string(minute);
+        return ans;
     }
 };
 

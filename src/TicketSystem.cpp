@@ -1,5 +1,23 @@
 #include "TicketSystem.h"
 
+void TicketSystem::CheckOrder(const WaitingOrder &order, SeatsDay &seats, SeatsWaitingListDay &list, int index) {
+    for (int i = order.leave_index; i < order.arrive_index; ++i) {
+        if (seats.seats[i] < order.num) return;
+    }
+    for (int i = order.leave_index; i < order.arrive_index; ++i) {
+        seats.seats[i] -= order.num;
+    }
+
+    Order tmp = order_map.FindModify({order.user_name, order.no}, false).second;
+    tmp.status = 1;
+    order_map.FindModify({order.user_name, order.no}, true, tmp);
+
+    for (int i = index; i < list.max_index; ++i) {
+        list.waiting_orders[i] = list.waiting_orders[i + 1];
+    }
+    --list.max_index;
+}
+
 int TicketSystem::BuyTicket(const char *u, const char *id, int d, const char *f, const char *t, int n, bool can_wait) {
     std::pair<int, UserInfo> res = user_system.CheckUserGetOrder(u);
     if (res.first == -1) return -1;
@@ -88,44 +106,13 @@ bool TicketSystem::RefundTicket(const char *u, int n) {
     return true;
 }
 
-std::pair<std::pair<std::string, std::string>, sjtu::vector<std::string>> TicketSystem::GetTokens(const std::string &s) {
-    std::string time_stamp = "[";
-    int i = 0;
-    while (true) {
-        ++i;
-        time_stamp += s[i];
-        if (time_stamp[i] == ']') break;
-    }
-    ++i;
-    ++i;
-
-    std::string cmd;
-    while (s[i] != ' ') {
-        cmd += s[i];
-        ++i;
-    }
-    ++i;
-
-    sjtu::vector<std::string> ans;
-    while (i < s.size()) {
-        std::string command;
-        while (s[i] != ' ' && i < s.size()) {
-            command += s[i];
-            ++i;
-        }
-        ans.push_back(command);
-        while (i < s.size() - 1 && s[i + 1] == ' ') { ++i; }
-        ++i;
-    }
-
-    return {{time_stamp, cmd}, ans};
-}
-
-void TicketSystem::AcceptMsg(const std::string &s) {
-    std::pair<std::pair<std::string, std::string>, sjtu::vector<std::string>> res = GetTokens(s);
-    std::cout << res.first.first << ' ';
-    std::string cmd = res.first.second;
-    sjtu::vector<std::string> parameters = res.second;
+void TicketSystem::AcceptMsg(const std::string &src) {
+    sjtu::vector<std::string> res = Command::GetTokens(src, ' ');
+    // 第一个是time_stamp
+    std::cout << res[0] << ' ';
+    // 第二个是cmd
+    std::string cmd = res[1];
+    int i = 2;
 
     if (cmd == "add_user") {
         char c[UserNameMAXLEN + 5] = {0};
@@ -134,66 +121,70 @@ void TicketSystem::AcceptMsg(const std::string &s) {
         char n[NameMAXLEN + 5] = {0};
         char m[MailAddrMAXLEN + 5] = {0};
         int g;
-        int i = 0;
-        while (i < parameters.size()) {
-            if (parameters[i] == "-c") {
-                StringToChar(c, parameters[++i]);
+
+        while (i < res.size()) {
+            if (res[i] == "-c") {
+                Command::StringToChar(c, res[++i]);
             }
-            else if (parameters[i] == "-u") {
-                StringToChar(u, parameters[++i]);
+            else if (res[i] == "-u") {
+                Command::StringToChar(u, res[++i]);
             }
-            else if (parameters[i] == "-p"){
-                StringToChar(p, parameters[++i]);
+            else if (res[i] == "-p"){
+                Command::StringToChar(p, res[++i]);
             }
-            else if (parameters[i] == "-n") {
-                StringToChar(n, parameters[++i]);
+            else if (res[i] == "-n") {
+                Command::StringToChar(n, res[++i]);
             }
-            else if (parameters[i] == "-m") {
-                StringToChar(m, parameters[++i]);
+            else if (res[i] == "-m") {
+                Command::StringToChar(m, res[++i]);
             }
-            else if (parameters[i] == "-g") {
-                g = StringToInt(parameters[++i]);
+            else if (res[i] == "-g") {
+                g = Command::StringToInt(res[++i]);
             }
             ++i;
         }
+
         if (user_system.AddUser(c, u, p, n, m, g)) std::cout << "0\n";
         else std::cout << "-1\n";
     }
     else if (cmd == "login") {
         char u[UserNameMAXLEN + 5] = {0};
         char p[PassWordMAXLEN + 5] = {0};
-        int i = 0;
-        while (i < parameters.size()) {
-            if (parameters[i] == "-u") {
-                StringToChar(u, parameters[++i]);
+
+        while (i < res.size()) {
+            if (res[i] == "-u") {
+                Command::StringToChar(u, res[++i]);
             }
-            else if (parameters[i] == "-p"){
-                StringToChar(p, parameters[++i]);
+            else if (res[i] == "-p"){
+                Command::StringToChar(p, res[++i]);
             }
             ++i;
         }
+
         if (user_system.Login(u, p)) std::cout << "0\n";
         else std::cout << "-1\n";
     }
     else if (cmd == "logout") {
         char u[UserNameMAXLEN + 5] = {0};
-        StringToChar(u, parameters[1]);
+        Command::StringToChar(u, res[1]);
+
         if (user_system.Logout(u)) std::cout << "0\n";
         else std::cout << "-1\n";
     }
     else if (cmd == "query_profile") {
         char c[UserNameMAXLEN + 5] = {0};
         char u[UserNameMAXLEN + 5] = {0};
-        int i = 0;
-        while (i < parameters.size()) {
-            if (parameters[i] == "-u") {
-                StringToChar(u, parameters[++i]);
+
+        while (i < res.size()) {
+            if (res[i] == "-u") {
+                Command::StringToChar(u, res[++i]);
             }
-            else if (parameters[i] == "-c"){
-                StringToChar(c, parameters[++i]);
+            else if (res[i] == "-c"){
+                Command::StringToChar(c, res[++i]);
             }
             ++i;
         }
+
         std::pair<bool, UserInfo> user = user_system.QueryProfile(c, u);
         if (!user.first) std::cout << "-1\n";
         else std::cout << user.second;
@@ -206,67 +197,245 @@ void TicketSystem::AcceptMsg(const std::string &s) {
         char m[MailAddrMAXLEN + 5] = {0};
         int g = -1;
         char *_p = nullptr, *_n = nullptr, *_m = nullptr;
-        int i = 0;
-        while (i < parameters.size()) {
-            if (parameters[i] == "-c") {
-                StringToChar(c, parameters[++i]);
+
+        while (i < res.size()) {
+            if (res[i] == "-c") {
+                Command::StringToChar(c, res[++i]);
             }
-            else if (parameters[i] == "-u") {
-                StringToChar(u, parameters[++i]);
+            else if (res[i] == "-u") {
+                Command::StringToChar(u, res[++i]);
             }
-            else if (parameters[i] == "-p"){
-                StringToChar(p, parameters[++i]);
+            else if (res[i] == "-p"){
+                Command::StringToChar(p, res[++i]);
                 _p = p;
             }
-            else if (parameters[i] == "-n") {
-                StringToChar(n, parameters[++i]);
+            else if (res[i] == "-n") {
+                Command::StringToChar(n, res[++i]);
                 _n = n;
             }
-            else if (parameters[i] == "-m") {
-                StringToChar(m, parameters[++i]);
+            else if (res[i] == "-m") {
+                Command::StringToChar(m, res[++i]);
                 _m = m;
             }
-            else if (parameters[i] == "-g") {
-                g = StringToInt(parameters[++i]);
+            else if (res[i] == "-g") {
+                g = Command::StringToInt(res[++i]);
             }
             ++i;
         }
+
         std::pair<bool, UserInfo> user = user_system.ModifyProfile(c, u, _p, _n, _m, g);
         if (!user.first) std::cout << "-1\n";
         else std::cout << user.second;
     }
     else if (cmd == "add_train") {
+        char id[TrainIDMAXLEN + 5] = {0};
+        char s[StationNumMAX + 1][StaionMAXLEN + 5] = {0};
+        int p[StationNumMAX + 1] = {0};
+        int n = 0, m = 0, d1 = 0, d2 = 0, x = 0;
+        int t[StationNumMAX + 1] = {0};
+        int o[StationNumMAX + 1] = {0};
+        char y;
 
+        while (i < res.size()) {
+            if (res[i] == "-i") {
+                Command::StringToChar(id, res[++i]);
+            }
+            else if (res[i] == "-n") {
+                n = Command::StringToInt(res[++i]);
+            }
+            else if (res[i] == "-m"){
+                m = Command::StringToInt(res[++i]);
+            }
+            else if (res[i] == "-s") {
+                sjtu::vector<std::string> stations = Command::GetTokens(res[++i], '|');
+                for (int cnt = 0; cnt < stations.size(); ++cnt) {
+                    Command::StringToChar(s[cnt + 1], stations[cnt]);
+                }
+            }
+            else if (res[i] == "-p") {
+                sjtu::vector<std::string> prices = Command::GetTokens(res[++i], '|');
+                for (int cnt = 0; cnt < prices.size(); ++cnt) {
+                    p[cnt + 1] = Command::StringToInt(prices[cnt]);
+                }
+            }
+            else if (res[i] == "-x") {
+                x = Command::TimeToInt(res[++i]);
+            }
+            else if (res[i] == "-t") {
+                sjtu::vector<std::string> times = Command::GetTokens(res[++i], '|');
+                for (int cnt = 0; cnt < times.size(); ++cnt) {
+                    t[cnt + 1] = Command::StringToInt(times[cnt]);
+                }
+            }
+            else if (res[i] == "-o") {
+                ++i;
+                if (res[i] != "_") {
+                    sjtu::vector<std::string> overs = Command::GetTokens(res[i], '|');
+                    for (int cnt = 0; cnt < overs.size(); ++cnt) {
+                        o[cnt + 1] = Command::StringToInt(overs[cnt]);
+                    }
+                }
+            }
+            else if (res[i] == "-d") {
+                sjtu::vector<std::string> dates = Command::GetTokens(res[++i], '|');
+                d1 = Command::DateToInt(dates[0]);
+                d2 = Command::DateToInt(dates[1]);
+            }
+            else if (res[i] == "-y") {
+                y = res[++i][0];
+            }
+            ++i;
+        }
+
+        if (train_system.AddTrain(id, n, m, s, p, x, t, o, d1, d2, y)) std::cout << "0\n";
+        else std::cout << "-1\n";
     }
     else if (cmd == "delete_train") {
-
+        char id[TrainIDMAXLEN + 5] = {0};
+        Command::StringToChar(id, res[++i]);
+        if (train_system.DeleteTrain(id)) std::cout << "0\n";
+        else std::cout << "-1\n";
     }
     else if (cmd == "release_train") {
-
+        char id[TrainIDMAXLEN + 5] = {0};
+        Command::StringToChar(id, res[++i]);
+        if (train_system.ReleaseTrain(id)) std::cout << "0\n";
+        else std::cout << "-1\n";
     }
     else if (cmd == "query_train") {
+        char id[TrainIDMAXLEN + 5] = {0};
+        int d = 0;
+        while (i < res.size())  {
+            if (res[i] == "-i") {
+                Command::StringToChar(id, res[++i]);
+            }
+            else if (res[i] == "-d") {
+                d = Command::DateToInt(res[++i]);
+            }
+        }
 
+        std::pair<std::pair<int, TrainInfo>, SeatsDay> tmp = train_system.QueryTrain(id, d);
+        if (tmp.first.first == -1) std::cout << "-1\n";
+        else {
+            std::cout << tmp.first.second.PrintTrain(tmp.second, d);
+        }
     }
     else if (cmd == "query_ticket") {
+        char s[StaionMAXLEN + 5] = {0};
+        char t[StaionMAXLEN + 5] = {0};
+        int d;
+        bool p = true;
 
+        while (i < res.size()) {
+            if (res[i] == "-s") {
+                Command::StringToChar(s, res[++i]);
+            }
+            else if (res[i] == "-t") {
+                Command::StringToChar(t, res[++i]);
+            }
+            else if (res[i] == "-d") {
+                d = Command::DateToInt(res[++i]);
+            }
+            else if (res[i] == "-p") {
+                if (res[++i] == "cost") p = false;
+            }
+        }
+
+        sjtu::vector<Ticket> tmp = train_system.QueryTicket(d, s, t, p);
+        std::cout << tmp.size() << '\n';
+        for (int cnt = 0; cnt < tmp.size(); ++cnt) {
+            std::cout << tmp[cnt] << '\n';
+        }
     }
     else if (cmd == "query_transfer") {
+        char s[StaionMAXLEN + 5] = {0};
+        char t[StaionMAXLEN + 5] = {0};
+        int d;
+        bool p = true;
 
+        while (i < res.size()) {
+            if (res[i] == "-s") {
+                Command::StringToChar(s, res[++i]);
+            }
+            else if (res[i] == "-t") {
+                Command::StringToChar(t, res[++i]);
+            }
+            else if (res[i] == "-d") {
+                d = Command::DateToInt(res[++i]);
+            }
+            else if (res[i] == "-p") {
+                if (res[++i] == "cost") p = false;
+            }
+        }
+
+        std::pair<bool, std::pair<Ticket, Ticket>> tmp = train_system.QueryTransfer(d, s, t, p);
+        if (!tmp.first) std::cout << "0\n";
+        else std::cout << tmp.second.first << '\n' << tmp.second.second << '\n';
     }
     else if (cmd == "buy_ticket") {
+        char u[UserNameMAXLEN + 5] = {0};
+        char id[TrainIDMAXLEN + 5] = {0};
+        int d, n;
+        char f[StaionMAXLEN + 5] = {0};
+        char t[StaionMAXLEN + 5] = {0};
+        bool q = false;
 
+        while (i < res.size()) {
+            if (res[i] == "-u") {
+                Command::StringToChar(u, res[++i]);
+            }
+            else if (res[i] == "-i") {
+                Command::StringToChar(id, res[++i]);
+            }
+            else if (res[i] == "-d") {
+                d = Command::DateToInt(res[++i]);
+            }
+            else if (res[i] == "-n") {
+                n = Command::StringToInt(res[++i]);
+            }
+            else if (res[i] == "-f") {
+                Command::StringToChar(f, res[++i]);
+            }
+            else if (res[i] == "-t") {
+                Command::StringToChar(t, res[++i]);
+            }
+            else if (res[i] == "-q") {
+                if (res[++i] == "true") q = true;
+            }
+        }
+
+        int tmp = BuyTicket(u, id, d, f, t, n, q);
+        if (tmp != 0) std::cout << tmp << '\n';
+        else std::cout << "queue\n";
     }
     else if (cmd == "query_order") {
+        char u[UserNameMAXLEN + 5] = {0};
+        Command::StringToChar(u, res[1]);
 
+        std::pair<bool, sjtu::vector<Order>> tmp = QueryOrder(u);
+        if (!tmp.first) std::cout << "-1\n";
+        else {
+            std::cout << tmp.second.size() << '\n';
+            for (int cnt = 0; cnt < tmp.second.size(); ++cnt) {
+                std::cout << tmp.second[cnt] << '\n';
+            }
+        }
     }
     else if (cmd == "refund_ticket") {
+        char u[UserNameMAXLEN + 5] = {0};
+        int n = 1;
 
-    }
-    else if (cmd == "clean") {
+        while (i < res.size()) {
+            if (res[i] == "-u") {
+                Command::StringToChar(u, res[++i]);
+            }
+            else if (res[i] == "-n") {
+                n = Command::StringToInt(res[++i]);
+            }
+        }
 
-    }
-    else if (cmd == "exit") {
-
+        if (RefundTicket(u, n)) std::cout << "0\n";
+        else std::cout << "-1\n";
     }
 }
 

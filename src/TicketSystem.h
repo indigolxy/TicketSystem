@@ -38,6 +38,20 @@ public:
             price += src.prices[i];
         }
     }
+    friend std::ostream &operator<<(std::ostream &os, const Order &obj) {
+        if (obj.status == 1) os << "[success] ";
+        else if (obj.status == 0) os << "[pending] ";
+        else os << "[refunded] ";
+        os << obj.train_id << ' ' << obj.leave_station << ' ';
+        int leave_date = obj.date + obj.leave_time / MinADay;
+        int lv_time = obj.leave_time % MinADay;
+        os << Command::IntToDate(leave_date) << ' ' << Command::IntToTime(lv_time);
+        os << " -> ";
+        int arrive_date = obj.date + obj.arrive_time / MinADay;
+        int av_time = obj.arrive_time % MinADay;
+        os << Command::IntToDate(arrive_date) << ' ' << Command::IntToTime(av_time);
+        os << ' ' << obj.price << ' ' << obj.num;
+    }
 };
 
 class TicketSystem {
@@ -51,40 +65,7 @@ private:
     }
 
     // * 引用传参修改list和seats
-    void CheckOrder(const WaitingOrder &order, SeatsDay &seats, SeatsWaitingListDay &list, int index) {
-        for (int i = order.leave_index; i < order.arrive_index; ++i) {
-            if (seats.seats[i] < order.num) return;
-        }
-        for (int i = order.leave_index; i < order.arrive_index; ++i) {
-            seats.seats[i] -= order.num;
-        }
-
-        Order tmp = order_map.FindModify({order.user_name, order.no}, false).second;
-        tmp.status = 1;
-        order_map.FindModify({order.user_name, order.no}, true, tmp);
-
-        for (int i = index; i < list.max_index; ++i) {
-            list.waiting_orders[i] = list.waiting_orders[i + 1];
-        }
-        --list.max_index;
-    }
-
-    std::pair<std::pair<std::string, std::string>, sjtu::vector<std::string>> GetTokens(const std::string &s);
-
-    void StringToChar(char *x, const std::string &y) {
-        for (int i = 0;i < y.length();++i) {
-            x[i] = y[i];
-        }
-    }
-
-    int StringToInt(const std::string &x) {
-        int ans = 0;
-        for (char i : x) {
-            ans *= 10;
-            ans += i - '0';
-        }
-        return ans;
-    }
+    void CheckOrder(const WaitingOrder &order, SeatsDay &seats, SeatsWaitingListDay &list, int index);
 
 public:
     TicketSystem(const std::string &order_map, const std::string &train_system, const std::string &user_system);
