@@ -3,12 +3,11 @@
 #include "../UserSystem.h"
 #include "../TrainSystem.h"
 
-template class BPlusTree<MyPair<64>, int, 2, 2>;
-template class BPlusTree<MyPair<64>, int, 27, 27>;
-template class BPlusTree<String<UserNameMAXLEN>, UserInfo, 27, 27>;
-template class BPlusTree<std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>>, TrainStation, 27, 27>;
-template class BPlusTree<String<TrainIDMAXLEN>, TrainInfo, 27, 27>;
-template class BPlusTree<std::pair<String<UserNameMAXLEN>, int>, Order, 27, 27>;
+template class BPlusTree<std::pair<String<UserNameMAXLEN>, int>, Order, OrderMapT, OrderMapL>;
+template class BPlusTree<std::pair<std::pair<String<TrainIDMAXLEN>, int>, int>, WaitingOrder, WaitListT, WaitListL>;
+template class BPlusTree<std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>>, TrainStation, StationTrainMapT, StationTrainMapL>;
+template class BPlusTree<String<TrainIDMAXLEN>, TrainInfo, TrainIDInfoMapT, TrainIDInfoMapL>;
+template class BPlusTree<String<UserNameMAXLEN>, UserInfo, UserMapT, UserMapL>;
 
 template <typename keyType, typename valueType, int t, int l>
 BPlusTree<keyType, valueType, t, l>::BPlusTree(const std::string &file_name_inherit,
@@ -604,3 +603,27 @@ Ptr BPlusTree<keyType, valueType, t, l>::FindModifyInNode(Ptr pos, const keyType
     if (tmp.son_is_leaf) return tmp.sons[res];
     return FindModifyInNode(tmp.sons[res], key);
 }
+
+template <typename keyType, typename valueType, int t, int l>
+void BPlusTree<keyType, valueType, t, l>::traverse(valueType (*operation)(valueType)) {
+    if (root == -1) return;
+    if (root_is_leaf) TraverseLeafNode(root, operation);
+    else {
+        node tmp = file_node.ReadPage(root);
+        while (!tmp.son_is_leaf) {
+            tmp = file_node.ReadPage(tmp.sons[0]);
+        }
+        TraverseLeafNode(tmp.sons[0], operation);
+    }
+}
+
+template <typename keyType, typename valueType, int t, int l>
+void BPlusTree<keyType, valueType, t, l>::TraverseLeafNode(Ptr pos, valueType (*operation)(valueType value)) {
+    LeafNode tmp = file_leaf.ReadPage(pos);
+    for (int i = 1; i <= tmp.key_num; ++i) {
+        tmp.values[i] = operation(tmp.values[i]);
+    }
+    file_leaf.WritePage(tmp, pos);
+    if (tmp.next_leaf != -1) TraverseLeafNode(tmp.next_leaf, operation);
+}
+

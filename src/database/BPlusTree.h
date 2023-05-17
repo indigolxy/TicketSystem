@@ -189,10 +189,14 @@ private:
 
     Ptr FindModifyInNode(Ptr pos, const keyType &key);
 
+    void TraverseLeafNode(Ptr pos, valueType (*operation)(valueType value));
+
 public:
 
     explicit BPlusTree(const std::string &file_name_inherit, const std::string &file_name_node, const std::string &file_name_leaf);
     ~BPlusTree();
+
+    bool empty() {return root == -1;}
 
     /*
      * 数据需保证key不重复
@@ -228,6 +232,10 @@ public:
      * 如果需要修改，找到后进行修改，返回true和传入的value，找不到返回false
      */
     std::pair<bool, valueType> FindModify(const keyType &key, bool need_modify, const valueType &value = valueType());
+
+    // * 对叶子节点底层遍历并对value进行一定操作
+    void traverse(valueType (*operation)(valueType));
+
 };
 
 #endif //TICKETSYSTEM_BPLUSTREE_H

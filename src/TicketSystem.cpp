@@ -1,29 +1,28 @@
 #include "TicketSystem.h"
 
-void TicketSystem::CheckOrder(const WaitingOrder &order, SeatsDay &seats, SeatsWaitingListDay &list, int index) {
+void TicketSystem::CheckOrder(const WaitingOrder &order, SeatsDay &seats) {
     for (int i = order.leave_index; i < order.arrive_index; ++i) {
         if (seats.seats[i] < order.num) return;
     }
+    // 能够补票
     for (int i = order.leave_index; i < order.arrive_index; ++i) {
-        seats.seats[i] -= order.num;
+        seats.seats[i] -= order.num; // 完成补票
     }
-
+    // 修改order并删除WaitingOrder
     Order tmp = order_map.FindModify({order.user_name, order.no}, false).second;
-    tmp.status = 1;
+    wait_list.remove({{tmp.train_id, tmp.date}, tmp.status});
+    tmp.status = 0; // success
     order_map.FindModify({order.user_name, order.no}, true, tmp);
-
-    for (int i = index; i < list.max_index; ++i) {
-        list.waiting_orders[i] = list.waiting_orders[i + 1];
-    }
-    --list.max_index;
 }
 
 int TicketSystem::BuyTicket(const char *u, const char *id, int d, const char *f, const char *t, int n, bool can_wait) {
     std::pair<int, UserInfo> res = user_system.CheckUserGetOrder(u);
     if (res.first == -1) return -1;
+
     int no = res.first + 1;
     std::pair<bool, TrainInfo> tmp = train_system.GetTrain(id);
     if (!tmp.first) return -1;
+
     TrainInfo train = tmp.second;
     int leave_index = 0, arrive_index = 0;
     for (int i = 1; i <= train.station_num; ++i) {
@@ -49,31 +48,30 @@ int TicketSystem::BuyTicket(const char *u, const char *id, int d, const char *f,
             break;
         }
     }
+
     if (seats_are_enough) {
-        order.status = 1;
+        order.status = 0;
         for (int i = leave_index; i < arrive_index; ++i) {
             seats.seats[i] -= n;
         }
-        train_system.seats_day_file.WritePage(seats, order.seats_day);
+        train_system.seats_day_file.WritePage(seats, order.seats_day); // 修改回文件
     }
     else if (!can_wait) {
         return -1;
     }
     else {
-        order.status = 0;
+        sjtu::vector<WaitingOrder> waiting_orders = wait_list.find({{train.train_id, d}, 0}, WaitListCmp);
+        order.status = waiting_orders.size() + 1;
         WaitingOrder waiting_order(leave_index, arrive_index, n, u, no);
-        SeatsWaitingListDay list = train_system.seats_waiting_list_day_file.ReadPage(order.seats_waiting_list_day);
-        ++list.max_index;
-        list.waiting_orders[list.max_index] = waiting_order;
-        train_system.seats_waiting_list_day_file.WritePage(list, order.seats_waiting_list_day);
+        wait_list.insert({{train.train_id, d}, order.status}, waiting_order);
     }
     order_map.insert({u, no}, order);
 
     ++res.second.order_num;
     user_system.user_map.FindModify(u, true, res.second);
 
-    if (order.status == 1) return order.price;
-    if (order.status == 0) return 0;
+    if (order.status == 0) return order.price * order.num;
+    return 0;
 }
 
 std::pair<bool, sjtu::vector<Order>> TicketSystem::QueryOrder(const char *u) {
@@ -87,22 +85,32 @@ bool TicketSystem::RefundTicket(const char *u, int n) {
     if (order_num == -1) return false;
     int no = order_num - n + 1;
     if (no <= 0) return false;
+
     Order order = order_map.FindModify({u, no}, false).second;
+    if (order.status == -1) return false; // refunded: 什么都不做
+    if (order.status > 0) { // pending 在waitinglist中删除，修改order状态
+        wait_list.remove({{order.train_id, order.date}, order.status});
+        order.status = -1; // refunded
+        order_map.FindModify({u, no}, true, order);
+        return true;
+    }
+
+    // order.status == 1(success)
     SeatsDay seats = train_system.seats_day_file.ReadPage(order.seats_day);
     for (int i = order.leave_index; i < order.arrive_index; ++i) {
-        seats.seats[i] += order.num;
+        seats.seats[i] += order.num; // 退回座位
     }
 
     order.status = -1;
     order_map.FindModify({u, no}, true, order);
 
-    SeatsWaitingListDay list = train_system.seats_waiting_list_day_file.ReadPage(order.seats_waiting_list_day);
-    for (int i = 0; i <= list.max_index; ++i) {
-        CheckOrder(list.waiting_orders[i], seats, list, i);
+    // 按顺序尝试补票
+    sjtu::vector<WaitingOrder> waiting_orders = wait_list.find({{order.train_id, order.date}, 0}, WaitListCmp);
+    for (int i = 0; i < waiting_orders.size(); ++i) {
+        CheckOrder(waiting_orders[i], seats);
     }
 
     train_system.seats_day_file.WritePage(seats, order.seats_day);
-    train_system.seats_waiting_list_day_file.WritePage(list, order.seats_waiting_list_day);
     return true;
 }
 
@@ -115,11 +123,11 @@ void TicketSystem::AcceptMsg(const std::string &src) {
     int i = 2;
 
     if (cmd == "add_user") {
-        char c[UserNameMAXLEN + 5] = {0};
-        char u[UserNameMAXLEN + 5] = {0};
-        char p[PassWordMAXLEN + 5] = {0};
-        char n[NameMAXLEN + 5] = {0};
-        char m[MailAddrMAXLEN + 5] = {0};
+        char c[UserNameMAXLEN + 1] = {0};
+        char u[UserNameMAXLEN + 1] = {0};
+        char p[PassWordMAXLEN + 1] = {0};
+        char n[NameMAXLEN + 1] = {0};
+        char m[MailAddrMAXLEN + 1] = {0};
         int g;
 
         while (i < res.size()) {
@@ -148,8 +156,8 @@ void TicketSystem::AcceptMsg(const std::string &src) {
         else std::cout << "-1\n";
     }
     else if (cmd == "login") {
-        char u[UserNameMAXLEN + 5] = {0};
-        char p[PassWordMAXLEN + 5] = {0};
+        char u[UserNameMAXLEN + 1] = {0};
+        char p[PassWordMAXLEN + 1] = {0};
 
         while (i < res.size()) {
             if (res[i] == "-u") {
@@ -165,15 +173,15 @@ void TicketSystem::AcceptMsg(const std::string &src) {
         else std::cout << "-1\n";
     }
     else if (cmd == "logout") {
-        char u[UserNameMAXLEN + 5] = {0};
-        Command::StringToChar(u, res[1]);
+        char u[UserNameMAXLEN + 1] = {0};
+        Command::StringToChar(u, res[++i]);
 
         if (user_system.Logout(u)) std::cout << "0\n";
         else std::cout << "-1\n";
     }
     else if (cmd == "query_profile") {
-        char c[UserNameMAXLEN + 5] = {0};
-        char u[UserNameMAXLEN + 5] = {0};
+        char c[UserNameMAXLEN + 1] = {0};
+        char u[UserNameMAXLEN + 1] = {0};
 
         while (i < res.size()) {
             if (res[i] == "-u") {
@@ -190,11 +198,11 @@ void TicketSystem::AcceptMsg(const std::string &src) {
         else std::cout << user.second;
     }
     else if (cmd == "modify_profile") {
-        char c[UserNameMAXLEN + 5] = {0};
-        char u[UserNameMAXLEN + 5] = {0};
-        char p[PassWordMAXLEN + 5] = {0};
-        char n[NameMAXLEN + 5] = {0};
-        char m[MailAddrMAXLEN + 5] = {0};
+        char c[UserNameMAXLEN + 1] = {0};
+        char u[UserNameMAXLEN + 1] = {0};
+        char p[PassWordMAXLEN + 1] = {0};
+        char n[NameMAXLEN + 1] = {0};
+        char m[MailAddrMAXLEN + 1] = {0};
         int g = -1;
         char *_p = nullptr, *_n = nullptr, *_m = nullptr;
 
@@ -228,8 +236,8 @@ void TicketSystem::AcceptMsg(const std::string &src) {
         else std::cout << user.second;
     }
     else if (cmd == "add_train") {
-        char id[TrainIDMAXLEN + 5] = {0};
-        char s[StationNumMAX + 1][StaionMAXLEN + 5] = {0};
+        char id[TrainIDMAXLEN + 1] = {0};
+        char s[StationNumMAX + 1][StaionMAXLEN + 1] = {0};
         int p[StationNumMAX + 1] = {0};
         int n = 0, m = 0, d1 = 0, d2 = 0, x = 0;
         int t[StationNumMAX + 1] = {0};
@@ -272,7 +280,7 @@ void TicketSystem::AcceptMsg(const std::string &src) {
                 if (res[i] != "_") {
                     sjtu::vector<std::string> overs = Command::GetTokens(res[i], '|');
                     for (int cnt = 0; cnt < overs.size(); ++cnt) {
-                        o[cnt + 1] = Command::StringToInt(overs[cnt]);
+                        o[cnt + 2] = Command::StringToInt(overs[cnt]);
                     }
                 }
             }
@@ -291,19 +299,19 @@ void TicketSystem::AcceptMsg(const std::string &src) {
         else std::cout << "-1\n";
     }
     else if (cmd == "delete_train") {
-        char id[TrainIDMAXLEN + 5] = {0};
+        char id[TrainIDMAXLEN + 1] = {0};
         Command::StringToChar(id, res[++i]);
         if (train_system.DeleteTrain(id)) std::cout << "0\n";
         else std::cout << "-1\n";
     }
     else if (cmd == "release_train") {
-        char id[TrainIDMAXLEN + 5] = {0};
+        char id[TrainIDMAXLEN + 1] = {0};
         Command::StringToChar(id, res[++i]);
         if (train_system.ReleaseTrain(id)) std::cout << "0\n";
         else std::cout << "-1\n";
     }
     else if (cmd == "query_train") {
-        char id[TrainIDMAXLEN + 5] = {0};
+        char id[TrainIDMAXLEN + 1] = {0};
         int d = 0;
         while (i < res.size())  {
             if (res[i] == "-i") {
@@ -312,17 +320,23 @@ void TicketSystem::AcceptMsg(const std::string &src) {
             else if (res[i] == "-d") {
                 d = Command::DateToInt(res[++i]);
             }
+            ++i;
         }
 
-        std::pair<std::pair<int, TrainInfo>, SeatsDay> tmp = train_system.QueryTrain(id, d);
-        if (tmp.first.first == -1) std::cout << "-1\n";
+        if (d == -1) {
+            std::cout << "-1\n";
+        }
         else {
-            std::cout << tmp.first.second.PrintTrain(tmp.second, d);
+            std::pair<std::pair<int, TrainInfo>, SeatsDay> tmp = train_system.QueryTrain(id, d);
+            if (tmp.first.first == -1) std::cout << "-1\n";
+            else {
+                std::cout << tmp.first.second.PrintTrain(tmp.second, d);
+            }
         }
     }
     else if (cmd == "query_ticket") {
-        char s[StaionMAXLEN + 5] = {0};
-        char t[StaionMAXLEN + 5] = {0};
+        char s[StaionMAXLEN + 1] = {0};
+        char t[StaionMAXLEN + 1] = {0};
         int d;
         bool p = true;
 
@@ -339,17 +353,23 @@ void TicketSystem::AcceptMsg(const std::string &src) {
             else if (res[i] == "-p") {
                 if (res[++i] == "cost") p = false;
             }
+            ++i;
         }
 
-        sjtu::vector<Ticket> tmp = train_system.QueryTicket(d, s, t, p);
-        std::cout << tmp.size() << '\n';
-        for (int cnt = 0; cnt < tmp.size(); ++cnt) {
-            std::cout << tmp[cnt] << '\n';
+        if (d == -1) {
+            std::cout << "0\n";
+        }
+        else {
+            sjtu::vector<Ticket> tmp = train_system.QueryTicket(d, s, t, p);
+            std::cout << tmp.size() << '\n';
+            for (int cnt = 0; cnt < tmp.size(); ++cnt) {
+                std::cout << tmp[cnt] << '\n';
+            }
         }
     }
     else if (cmd == "query_transfer") {
-        char s[StaionMAXLEN + 5] = {0};
-        char t[StaionMAXLEN + 5] = {0};
+        char s[StaionMAXLEN + 1] = {0};
+        char t[StaionMAXLEN + 1] = {0};
         int d;
         bool p = true;
 
@@ -366,18 +386,24 @@ void TicketSystem::AcceptMsg(const std::string &src) {
             else if (res[i] == "-p") {
                 if (res[++i] == "cost") p = false;
             }
+            ++i;
         }
 
-        std::pair<bool, std::pair<Ticket, Ticket>> tmp = train_system.QueryTransfer(d, s, t, p);
-        if (!tmp.first) std::cout << "0\n";
-        else std::cout << tmp.second.first << '\n' << tmp.second.second << '\n';
+        if (d == -1) {
+            std::cout << "0\n";
+        }
+        else {
+            std::pair<bool, std::pair<Ticket, Ticket>> tmp = train_system.QueryTransfer(d, s, t, p);
+            if (!tmp.first) std::cout << "0\n";
+            else std::cout << tmp.second.first << '\n' << tmp.second.second << '\n';
+        }
     }
     else if (cmd == "buy_ticket") {
-        char u[UserNameMAXLEN + 5] = {0};
-        char id[TrainIDMAXLEN + 5] = {0};
+        char u[UserNameMAXLEN + 1] = {0};
+        char id[TrainIDMAXLEN + 1] = {0};
         int d, n;
-        char f[StaionMAXLEN + 5] = {0};
-        char t[StaionMAXLEN + 5] = {0};
+        char f[StaionMAXLEN + 1] = {0};
+        char t[StaionMAXLEN + 1] = {0};
         bool q = false;
 
         while (i < res.size()) {
@@ -402,27 +428,31 @@ void TicketSystem::AcceptMsg(const std::string &src) {
             else if (res[i] == "-q") {
                 if (res[++i] == "true") q = true;
             }
+            ++i;
         }
 
-        int tmp = BuyTicket(u, id, d, f, t, n, q);
-        if (tmp != 0) std::cout << tmp << '\n';
-        else std::cout << "queue\n";
+        if (d == -1) std::cout << "-1\n";
+        else {
+            int tmp = BuyTicket(u, id, d, f, t, n, q);
+            if (tmp != 0) std::cout << tmp << '\n';
+            else std::cout << "queue\n";
+        }
     }
     else if (cmd == "query_order") {
-        char u[UserNameMAXLEN + 5] = {0};
-        Command::StringToChar(u, res[1]);
+        char u[UserNameMAXLEN + 1] = {0};
+        Command::StringToChar(u, res[++i]);
 
         std::pair<bool, sjtu::vector<Order>> tmp = QueryOrder(u);
         if (!tmp.first) std::cout << "-1\n";
         else {
             std::cout << tmp.second.size() << '\n';
-            for (int cnt = 0; cnt < tmp.second.size(); ++cnt) {
+            for (int cnt = tmp.second.size() - 1 ; cnt >= 0; --cnt) {
                 std::cout << tmp.second[cnt] << '\n';
             }
         }
     }
     else if (cmd == "refund_ticket") {
-        char u[UserNameMAXLEN + 5] = {0};
+        char u[UserNameMAXLEN + 1] = {0};
         int n = 1;
 
         while (i < res.size()) {
@@ -432,6 +462,7 @@ void TicketSystem::AcceptMsg(const std::string &src) {
             else if (res[i] == "-n") {
                 n = Command::StringToInt(res[++i]);
             }
+            ++i;
         }
 
         if (RefundTicket(u, n)) std::cout << "0\n";
@@ -440,4 +471,9 @@ void TicketSystem::AcceptMsg(const std::string &src) {
 }
 
 TicketSystem::TicketSystem(const std::string &order_map, const std::string &train_system, const std::string &user_system) :
-order_map(order_map + "1", order_map + "2", order_map + "3"), train_system(train_system), user_system(user_system) {}
+order_map(order_map + "1", order_map + "2", order_map + "3"), wait_list(order_map + "4", order_map + "5", order_map + "6"),
+train_system(train_system), user_system(user_system) {}
+
+void TicketSystem::Exit() {
+    user_system.user_map.traverse(UserSystem::Operation);
+}

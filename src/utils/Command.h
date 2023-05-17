@@ -34,13 +34,13 @@ public:
 
     // "19:19"
     static int TimeToInt(const std::string &src) {
-        Time time(src[0] * 10 + src[1], src[3] * 10 + src[4]);
+        Time time((src[0] - '0') * 10 + (src[1] - '0'), (src[3] - '0') * 10 + (src[4] - '0'));
         return time.TimeToInt();
     }
 
     // "06-01"
     static int DateToInt(const std::string &src) {
-        Date date(src[0] * 10 + src[1], src[3] * 10 + src[4]);
+        Date date((src[0] - '0') * 10 + (src[1] - '0'), (src[3] - '0') * 10 + (src[4] - '0'));
         return date.DateToInt();
     }
 

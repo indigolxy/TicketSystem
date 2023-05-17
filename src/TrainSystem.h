@@ -9,7 +9,6 @@
 constexpr int TrainIDMAXLEN = 20;
 constexpr int StationNumMAX = 100;
 constexpr int StaionMAXLEN = 10 * 3;
-constexpr int WaitingNumMAX = 100;
 constexpr int DateNumMAX = 92;
 constexpr int MinADay = 24 * 60;
 
@@ -28,47 +27,21 @@ private:
 public:
     SeatsDay() = default;
     SeatsDay(int seat_num, int station_num) {
-        for (int i = 1; i <= station_num; ++i) {
+        for (int i = 1; i < station_num; ++i) {
             seats[i] = seat_num;
         }
     }
     void Initialize(int seat_num, int station_num) {
-        for (int i = 1; i <= station_num; ++i) {
+        for (int i = 1; i < station_num; ++i) {
             seats[i] = seat_num;
         }
     }
-};
-
-class WaitingOrder {
-    friend class TicketSystem;
-private:
-    int leave_index;
-    int arrive_index;
-    int num;
-    char user_name[UserNameMAXLEN + 5];
-    int no;
-
-public:
-    WaitingOrder() = default;
-    WaitingOrder(int leave, int arrive, int n, const char *u, int noo) : leave_index(leave), arrive_index(arrive), num(n), no(noo) {
-        strcpy(user_name, u);
-    }
-};
-
-class SeatsWaitingListDay {
-    friend class TicketSystem;
-private:
-    WaitingOrder waiting_orders[WaitingNumMAX + 1];
-    int max_index = -1; // 目前优先级最低的waiting_order的下标
-
-public:
-    SeatsWaitingListDay() : max_index(-1),waiting_orders() {}
 };
 
 class TrainStation {
     friend class TrainSystem;
 private:
-    char train_id[TrainIDMAXLEN + 5];
+    char train_id[TrainIDMAXLEN + 1];
     int index; // 在bpt中对应station在该车次中的下标
 
 public:
@@ -81,10 +54,10 @@ public:
 class Ticket {
     friend class TrainSystem;
 private:
-    char train_id[TrainIDMAXLEN + 5];
-    char leave_station_name[StaionMAXLEN + 5];
+    char train_id[TrainIDMAXLEN + 1];
+    char leave_station_name[StaionMAXLEN + 1];
     int leave_station_time; // leaving_time
-    char arrive_station_name[StaionMAXLEN + 5];
+    char arrive_station_name[StaionMAXLEN + 1];
     int arrive_station_time; // arriving_time
     int seat;
     int time;
@@ -95,6 +68,8 @@ public:
     Ticket() = default;
 
     Ticket(const TrainInfo &src, int leave_index, int arrive_index, SeatsDay seats, int start_d);
+
+    Ticket(const Ticket &other);
 
     friend std::ostream &operator<<(std::ostream &os, const Ticket &obj) {
         os << obj.train_id << ' ' << obj.leave_station_name << ' ';
@@ -107,6 +82,7 @@ public:
         int arrive_time = obj.arrive_station_time % MinADay;
         os << Command::IntToDate(arrive_date) << ' ' << Command::IntToTime(arrive_time);
         os << ' ' << std::to_string(obj.cost) << ' ' << std::to_string(obj.seat);
+        return os;
     }
 };
 
@@ -118,32 +94,35 @@ class TrainInfo {
     friend class Order;
 
 private:
-    char train_id[TrainIDMAXLEN + 5];
+    char train_id[TrainIDMAXLEN + 1];
     int station_num;
     int seat_num;
     bool released;
     char type;
     int sale_date_start;
     int sale_date_end;
-    char stations[StationNumMAX + 1][StaionMAXLEN + 5];
+    char stations[StationNumMAX + 1][StaionMAXLEN + 1];
     int prices[StationNumMAX + 1];
     int arriving_times[StationNumMAX + 1];
     int leaving_times[StationNumMAX + 1];
     Ptr seats;
-    Ptr seats_waiting_lists;
 
 public:
     TrainInfo() = default;
     std::string PrintTrain(const SeatsDay &seats_day, int start_day);
 };
 
+constexpr int StationTrainMapT = ((4096 - 5) / (StaionMAXLEN + 1 + TrainIDMAXLEN + 1 + 4) - 2) / 2;
+constexpr int StationTrainMapL = ((4096 - 8) / (StaionMAXLEN + 1 + TrainIDMAXLEN + 1 + sizeof(TrainStation)) - 2) / 2;
+constexpr int TrainIDInfoMapT = ((4096 - 5) / (TrainIDMAXLEN + 1 + 4) - 2) / 2;
+constexpr int TrainIDInfoMapL = ((4096 * 16 - 8) / (TrainIDMAXLEN + 1 + sizeof(TrainInfo)) - 2) / 2;
+
 class TrainSystem {
     friend class TicketSystem;
 private:
-    BPlusTree<std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>>, TrainStation> station_train_map;
-    BPlusTree<String<TrainIDMAXLEN>, TrainInfo> train_id_info_map;
-    FileSystem<SeatsDay> seats_day_file;
-    FileSystem<SeatsWaitingListDay> seats_waiting_list_day_file;
+    BPlusTree<std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>>, TrainStation, StationTrainMapT, StationTrainMapL> station_train_map;
+    BPlusTree<String<TrainIDMAXLEN>, TrainInfo, TrainIDInfoMapT, TrainIDInfoMapL> train_id_info_map;
+    FileSystem<SeatsDay, 100> seats_day_file;
 
     static bool TrainStationCmp(const std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>> &a, const std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>> &b) {
         return strcmp(a.first.data, b.first.data) < 0;
@@ -162,7 +141,7 @@ private:
 public:
     TrainSystem(const std::string &train_system);
 
-    bool AddTrain(const char *id, int n, int m, char s[StationNumMAX + 1][StaionMAXLEN + 5], int p[StationNumMAX + 1],
+    bool AddTrain(const char *id, int n, int m, char s[StationNumMAX + 1][StaionMAXLEN + 1], int p[StationNumMAX + 1],
                   int x, int t[StationNumMAX + 1], int o[StationNumMAX + 1], int d1, int d2, char y);
 
     bool DeleteTrain(const char *id);

@@ -17,25 +17,34 @@ public:
             month = 7;
             day = d - 29;
         }
-        else {
+        else if (d < 92){
             month = 8;
             day = d - 60;
+        }
+        else {
+            month = 9;
+            day = d - 91;
         }
     }
     static Date IntToDate(int d) {
         if (d < 30) return {6, d + 1};
         if (d < 61) return {7, d - 29};
-        return {8, d - 60};
+        if (d < 92) return {8, d - 60};
+        return {9, d - 91};
     }
     int DateToInt() const {
         if (month == 6) return day - 1;
         if (month == 7) return day + 29;
-        return day + 60;
+        if (month == 8) return day + 60;
+        if (month == 9) return day + 91;
+        return -1;
     }
     std::string DateToString() const {
         std::string ans;
+        if (month < 10) ans += "0";
         ans += std::to_string(month);
         ans += "-";
+        if (day < 10) ans += "0";
         ans += std::to_string(day);
         return ans;
     }
@@ -57,8 +66,10 @@ public:
     }
     std::string TimeToString() const {
         std::string ans;
+        if (hour < 10) ans += "0";
         ans += std::to_string(hour);
         ans += ":";
+        if (minute < 10) ans += "0";
         ans += std::to_string(minute);
         return ans;
     }
