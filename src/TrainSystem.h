@@ -122,7 +122,7 @@ class TrainSystem {
 private:
     BPlusTree<std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>>, TrainStation, StationTrainMapT, StationTrainMapL> station_train_map;
     BPlusTree<String<TrainIDMAXLEN>, TrainInfo, TrainIDInfoMapT, TrainIDInfoMapL> train_id_info_map;
-    FileSystem<SeatsDay, 100> seats_day_file;
+    FileSystem<SeatsDay, 10> seats_day_file;
 
     static bool TrainStationCmp(const std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>> &a, const std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>> &b) {
         return strcmp(a.first.data, b.first.data) < 0;

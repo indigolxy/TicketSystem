@@ -8,7 +8,9 @@ int main() {
     auto *ticket_system = new TicketSystem("files/order.file", "files/train.file", "files/user.file");
 //    TicketSystem ticket_system("files/order.file", "files/train.file", "files/user.file");
     std::string cmd;
-    while (std::getline(std::cin, cmd)) {
+    int debug_cnt = 0;
+    while (getline(std::cin, cmd)) {
+        if (cmd[cmd.size() - 1] == '\r') cmd.pop_back();
         std::string time_stamp;
         int i = 0;
         while (cmd[i] != ']') {
@@ -31,7 +33,10 @@ int main() {
             break;
         }
         else {
-            ticket_system->AcceptMsg(cmd);
+            time_stamp.pop_back();
+            time_stamp = time_stamp.substr(1);
+            int time_stmp = Command::StringToInt(time_stamp);
+            ticket_system->AcceptMsg(cmd, time_stmp);
         }
     }
     delete ticket_system;

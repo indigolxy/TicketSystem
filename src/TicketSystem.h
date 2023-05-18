@@ -11,7 +11,7 @@ private:
     int date; // 发车日期
     int num;
     int price;
-    int status; // 0 success，-1 refunded，正数表示pending以及在wait_list中的no
+    int status; // 1 success，-1 refunded, 0 pending
 
     int leave_index;
     char leave_station[StaionMAXLEN + 1];
@@ -19,13 +19,14 @@ private:
     int arrive_index;
     char arrive_station[StaionMAXLEN + 1];
     int arrive_time;
+    int time_stamp;
 
     Ptr seats_day; // 该车次该发车日期对应的SeatsDay的读写位置
 
 public:
     Order() = default;
     // * 未设置status
-    Order(const TrainInfo &src, int d, int n, int leave, int arrive) : date(d), num(n), leave_index(leave), arrive_index(arrive) {
+    Order(const TrainInfo &src, int d, int n, int leave, int arrive, int time) : date(d), num(n), leave_index(leave), arrive_index(arrive), time_stamp(time) {
         strcpy(train_id, src.train_id);
         strcpy(leave_station, src.stations[leave]);
         strcpy(arrive_station, src.stations[arrive]);
@@ -35,8 +36,8 @@ public:
         price = src.prices[arrive] - src.prices[leave];
     }
     friend std::ostream &operator<<(std::ostream &os, const Order &obj) {
-        if (obj.status == 0) os << "[success] ";
-        else if (obj.status > 0) os << "[pending] ";
+        if (obj.status == 1) os << "[success] ";
+        else if (obj.status == 0) os << "[pending] ";
         else os << "[refunded] ";
 
         os << obj.train_id << ' ' << obj.leave_station << ' ';
@@ -60,19 +61,19 @@ private:
     int arrive_index;
     int num;
     char user_name[UserNameMAXLEN + 1];
-    int no;
+    int time_stamp;
 
 public:
     WaitingOrder() = default;
-    WaitingOrder(int leave, int arrive, int n, const char *u, int noo) : leave_index(leave), arrive_index(arrive), num(n), no(noo) {
+    WaitingOrder(int leave, int arrive, int n, const char *u, int time) : leave_index(leave), arrive_index(arrive), num(n), time_stamp(time) {
         strcpy(user_name, u);
     }
 };
 
 constexpr int OrderMapT = ((4096 - 5) / (4 + UserNameMAXLEN + 1 + 4) - 2) / 2;
 constexpr int OrderMapL = ((4096 * 2 - 8) / (4 + UserNameMAXLEN + 1 + sizeof(Order)) - 2) / 2;
-constexpr int WaitListT = ((4096 - 5) / (4 + 4 + TrainIDMAXLEN + 1 + 4) - 2) / 2;
-constexpr int WaitListL = ((4096 - 8) / (4 + 4 + TrainIDMAXLEN + 1 + sizeof(WaitingOrder)) - 2) / 2;
+constexpr int WaitListT = ((4096 - 5) / (4 + TrainIDMAXLEN + 1 + 4 + 4) - 2) / 2;
+constexpr int WaitListL = ((4096 - 8) / (4 + TrainIDMAXLEN + 1 + 4 + sizeof(WaitingOrder)) - 2) / 2;
 
 class TicketSystem {
 private:
@@ -86,7 +87,9 @@ private:
     }
 
     static bool WaitListCmp(const std::pair<std::pair<String<TrainIDMAXLEN>, int>, int> &a, const std::pair<std::pair<String<TrainIDMAXLEN>, int>, int> &b) {
-        return a.first < b.first;
+        if (strcmp(a.first.first.data, b.first.first.data) < 0) return true;
+        if (strcmp(a.first.first.data, b.first.first.data) > 0) return false;
+        return a.first.second < b.first.second;
     }
 
     // * 引用传参修改seats
@@ -95,13 +98,13 @@ private:
 public:
     TicketSystem(const std::string &order_map, const std::string &train_system, const std::string &user_system);
 
-    int BuyTicket(const char *u, const char *id, int d, const char *f, const char *t, int n, bool can_wait);
+    int BuyTicket(const char *u, const char *id, int d, const char *f, const char *t, int n, bool can_wait, int time_stamp);
 
     std::pair<bool, sjtu::vector<Order>> QueryOrder(const char *u);
 
     bool RefundTicket(const char *u, int n);
 
-    void AcceptMsg(const std::string &s);
+    void AcceptMsg(const std::string &s, int time_stamp);
 
     void Exit();
 };

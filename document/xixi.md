@@ -11,8 +11,7 @@ include: TrainSystem
 # UserSystem.h
 ## class
 ### UserInfo
-username, password, name, mailAddr, privilege, logged_in, 
-**order_num**(1-based)
+username, password, name, mailAddr, privilege, logged_in,
 #### username
 由字母开头，由字母、数字和下划线组成的字符串，长度不超过 20。
 #### password
@@ -129,27 +128,30 @@ return {{int, trainInfo}, SeatsDay}
 # TicketSystem.h
 ## classes
 ### Order
-trainID, date(转化为发车日期), num(int), price(int), status(int)(0 success，-1 refunded，正数表示pending以及在waitlist中的no), 
+trainID, date(转化为发车日期), num(int), price(int), status(int)(1 success，-1 refunded, 0 pending), 
 -s(int, char[], leaving_time), -t(int, char[], arriving_time)
-seats_day(Ptr)（该车次**该发车日期**对应的SeatsDay的读写位置）
+seats_day(Ptr)（该车次该发车日期对应的SeatsDay的读写位置）
+**time_stamp(int)**
 ### WaitingOrder
 int start_station, int arrive_station,
-int num, char user_id[], int no
+int num, char user_id[], **int time_stamp**
 
 ## files
-一个从{username, no}到Order的bpt（重复键值）
-一个从{{trainID, day}, no}映射到WaitingOrder的bpt
+一个从{username, **time_stamp**}到Order的bpt（重复键值）
+一个从{{trainID, day}, **time_stamp**}映射到WaitingOrder的bpt
 
 ## 操作
 ### buy_ticket(SF)
-1. 检查user已登录，并获取order_num, no = order_num + 1
+1. 检查user已登录
 2. 去TrainSystem里拿到trianID对应的TrainInfo（检查train是否已经released）
+3. 若购票数超过总座位数，购票失败，return -1;
 4. 遍历trainInfo获取-s/-t对应的int（若不存在-s,-t,return -1)
 5. 检查train是否在**当天**有车次(失败return -1)
+
 5. 定义一个Order对象，去TrainSystem里获取该车次该天的SeatsDay
-6. 若剩余seats足够，status = 0，去TrianSystem里更改SeatsDay
+6. 若剩余seats足够，status = 1，去TrianSystem里更改SeatsDay
 7. 若剩余seats不够且不接受候补，购票失败，返回-1
-8. 若剩余seats不够且接受候补，先去最后一个bpt里查找出所有{trainID, day}对应的WaitingOrder，接着个数++，定义一个WaitingOrder对象，再插入最后一个bpt，status = no
+8. 若剩余seats不够且接受候补，定义一个WaitingOrder对象，再插入最后一个bpt，status = 0
 9. 向bpt中插入此order
 10. user.order_num++，写回UserSystem(Modify)
 10. 返回price/0(pending)/-1
@@ -158,16 +160,16 @@ int num, char user_id[], int no
 2. 去bpt里find所有username对应的order（按no升序）
 3. 返回vector<Order>
 ### refund_ticket(N)
-1. 检查user已登录，并获取order_num，计算出要找的no(check)
-2. 去bpt里find{username, no}（单一键值）
+1. 检查user已登录
+2. 去bpt里find{username, {}}（重复键值）的vector，并找到要refund的那个order
 3. 若status为-1（refunded），什么都不做，返回false
-4. 若status为正数（pending），去最后一个bpt里删除(trainID, date, status)，修改order的status返回true
-5. 若status为0(success)
+4. 若status为0（pending），去最后一个bpt里删除(trainID, date, status)，修改order的status返回true
+5. 若status为1(success)
 3. 去TrainSystem里根据seats_day获取SeatsDay，并更改（完成退票）
-4. order.status = -1，Modify bpt{username, no}
+4. order.status = -1，Modify bpt{username, time_stamp}
 5. bpt.find{trainID, date}(按no升序)
 6. 根据刚才更改好的SeatsDay顺序遍历整个WaitingList，找到可以补票的order时：
-   更改SeatsDay完成补票，再根据{username, no}去bpt里把Order.status改为0(先find再Modify)，
+   更改SeatsDay完成补票，再根据{username, timestamp}去bpt里把Order.status改为1(先find再Modify)，
    从最后一个bpt里删除{trainID, date, no}
 7. 把SeatsDay写回TrainSystem
 ### AcceptMsg
@@ -179,8 +181,10 @@ int num, char user_id[], int no
 3. FindModify用于单一键值，单纯find或修改目标key对应的value（key不存在返回false）
 
 # todo
-1. waitinglist改为bpt（bpt块长是否要对应修改？）
+1. 替换Waitlistkeytype的最后一个参数为一个WaitingOrder独有的
 2. 时间优化：CheckTrainStation中可以先比较tmp与ans，若tmp优于ans，再文件读写获取seats
+3. 时间优化：BuyTicket中不用整个waitingorder来找大小
 
-# 注意事项
+# 注意事项&bugs
 1. 所有需要输出的，函数都只返回Info类或vector<Info>，在Info类重载输出，后续统一输出
+2. waitlist直接删除的话，status代表的num会出问题！不是从0-1连续的！解决方法：替换Waitlistkeytype的最后一个参数为一个WaitingOrder独有的

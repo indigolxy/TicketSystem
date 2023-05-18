@@ -9,21 +9,20 @@ void TicketSystem::CheckOrder(const WaitingOrder &order, SeatsDay &seats) {
         seats.seats[i] -= order.num; // 完成补票
     }
     // 修改order并删除WaitingOrder
-    Order tmp = order_map.FindModify({order.user_name, order.no}, false).second;
-    wait_list.remove({{tmp.train_id, tmp.date}, tmp.status});
-    tmp.status = 0; // success
-    order_map.FindModify({order.user_name, order.no}, true, tmp);
+    Order tmp = order_map.FindModify({order.user_name, order.time_stamp}, false).second;
+    wait_list.remove({{tmp.train_id, tmp.date}, order.time_stamp});
+    tmp.status = 1; // success
+    order_map.FindModify({order.user_name, order.time_stamp}, true, tmp);
 }
 
-int TicketSystem::BuyTicket(const char *u, const char *id, int d, const char *f, const char *t, int n, bool can_wait) {
-    std::pair<int, UserInfo> res = user_system.CheckUserGetOrder(u);
-    if (res.first == -1) return -1;
-
-    int no = res.first + 1;
+int TicketSystem::BuyTicket(const char *u, const char *id, int d, const char *f, const char *t, int n, bool can_wait, int time_stamp) {
+    std::pair<bool, UserInfo> res = user_system.CheckUser(u);
+    if (!res.first) return -1;
     std::pair<bool, TrainInfo> tmp = train_system.GetTrain(id);
     if (!tmp.first) return -1;
 
     TrainInfo train = tmp.second;
+    if (n > train.seat_num) return -1; // 购买票数超过总座位数，购票失败
     int leave_index = 0, arrive_index = 0;
     for (int i = 1; i <= train.station_num; ++i) {
         if (strcmp(f, train.stations[i]) == 0) {
@@ -39,7 +38,7 @@ int TicketSystem::BuyTicket(const char *u, const char *id, int d, const char *f,
     d -= train.leaving_times[leave_index] / MinADay;
     if (d < train.sale_date_start || d > train.sale_date_end) return -1;
 
-    Order order(train, d, n, leave_index, arrive_index);
+    Order order(train, d, n, leave_index, arrive_index, time_stamp);
     SeatsDay seats = train_system.seats_day_file.ReadPage(order.seats_day);
     bool seats_are_enough = true;
     for (int i = leave_index; i < arrive_index; ++i) {
@@ -50,7 +49,7 @@ int TicketSystem::BuyTicket(const char *u, const char *id, int d, const char *f,
     }
 
     if (seats_are_enough) {
-        order.status = 0;
+        order.status = 1;
         for (int i = leave_index; i < arrive_index; ++i) {
             seats.seats[i] -= n;
         }
@@ -60,38 +59,33 @@ int TicketSystem::BuyTicket(const char *u, const char *id, int d, const char *f,
         return -1;
     }
     else {
-        sjtu::vector<WaitingOrder> waiting_orders = wait_list.find({{train.train_id, d}, 0}, WaitListCmp);
-        order.status = waiting_orders.size() + 1;
-        WaitingOrder waiting_order(leave_index, arrive_index, n, u, no);
-        wait_list.insert({{train.train_id, d}, order.status}, waiting_order);
+        order.status = 0;
+        WaitingOrder waiting_order(leave_index, arrive_index, n, u, time_stamp);
+        bool debug = wait_list.insert({{train.train_id, d}, time_stamp}, waiting_order);
     }
-    order_map.insert({u, no}, order);
+    order_map.insert({u, time_stamp}, order);
 
-    ++res.second.order_num;
-    user_system.user_map.FindModify(u, true, res.second);
-
-    if (order.status == 0) return order.price * order.num;
+    if (order.status == 1) return order.price * order.num;
     return 0;
 }
 
 std::pair<bool, sjtu::vector<Order>> TicketSystem::QueryOrder(const char *u) {
-    int order_num = user_system.CheckUserGetOrder(u).first;
-    if (order_num == -1) return {false, {}};
+    if (!user_system.CheckUser(u).first) return {false, {}};
     return {true, order_map.find({u, 0}, OrderMapCmp)};
 }
 
 bool TicketSystem::RefundTicket(const char *u, int n) {
-    int order_num = user_system.CheckUserGetOrder(u).first;
-    if (order_num == -1) return false;
-    int no = order_num - n + 1;
-    if (no <= 0) return false;
+    if (!user_system.CheckUser(u).first) return false;
+    sjtu::vector<Order> orders = order_map.find({u, 0}, OrderMapCmp);
+    int index = orders.size() - n;
+    if (index < 0) return false;
 
-    Order order = order_map.FindModify({u, no}, false).second;
+    Order order = orders[index];
     if (order.status == -1) return false; // refunded: 什么都不做
-    if (order.status > 0) { // pending 在waitinglist中删除，修改order状态
-        wait_list.remove({{order.train_id, order.date}, order.status});
+    if (order.status == 0) { // pending 在waitinglist中删除，修改order状态
+        wait_list.remove({{order.train_id, order.date}, order.time_stamp});
         order.status = -1; // refunded
-        order_map.FindModify({u, no}, true, order);
+        order_map.FindModify({u, order.time_stamp}, true, order);
         return true;
     }
 
@@ -102,10 +96,10 @@ bool TicketSystem::RefundTicket(const char *u, int n) {
     }
 
     order.status = -1;
-    order_map.FindModify({u, no}, true, order);
+    order_map.FindModify({u, order.time_stamp}, true, order);
 
     // 按顺序尝试补票
-    sjtu::vector<WaitingOrder> waiting_orders = wait_list.find({{order.train_id, order.date}, 0}, WaitListCmp);
+    sjtu::vector<WaitingOrder> waiting_orders = wait_list.find({{order.train_id, order.date}, {}}, WaitListCmp);
     for (int i = 0; i < waiting_orders.size(); ++i) {
         CheckOrder(waiting_orders[i], seats);
     }
@@ -114,7 +108,7 @@ bool TicketSystem::RefundTicket(const char *u, int n) {
     return true;
 }
 
-void TicketSystem::AcceptMsg(const std::string &src) {
+void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
     sjtu::vector<std::string> res = Command::GetTokens(src, ' ');
     // 第一个是time_stamp
     std::cout << res[0] << ' ';
@@ -433,7 +427,7 @@ void TicketSystem::AcceptMsg(const std::string &src) {
 
         if (d == -1) std::cout << "-1\n";
         else {
-            int tmp = BuyTicket(u, id, d, f, t, n, q);
+            int tmp = BuyTicket(u, id, d, f, t, n, q, time_stamp);
             if (tmp != 0) std::cout << tmp << '\n';
             else std::cout << "queue\n";
         }

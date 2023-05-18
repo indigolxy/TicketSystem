@@ -20,11 +20,10 @@ private:
     char mail_addr[MailAddrMAXLEN + 1];
     int privilege;
     bool logged_in = false;
-    int order_num = 0; // 1-based
 
 public:
     UserInfo() = default;
-    UserInfo(const char *u, const char *p, const char *n, const char *m, int pri, bool log = false) : order_num(0) {
+    UserInfo(const char *u, const char *p, const char *n, const char *m, int pri, bool log = false) {
         strcpy(user_name, u);
         strcpy(password, p);
         strcpy(name, n);
@@ -32,7 +31,7 @@ public:
         privilege = pri;
         logged_in = log;
     }
-    UserInfo(const UserInfo &other) : privilege(other.privilege), logged_in(other.logged_in), order_num(other.order_num) {
+    UserInfo(const UserInfo &other) : privilege(other.privilege), logged_in(other.logged_in) {
         strcpy(user_name, other.user_name);
         strcpy(password, other.password);
         strcpy(name, other.name);
@@ -60,11 +59,12 @@ private:
 public:
     UserSystem(const std::string &user_system) : user_map(user_system + "1", user_system + "2", user_system + "3") {}
 
-    std::pair<int, UserInfo> CheckUserGetOrder(const char *u) {
+    // * 若user不存在或未登录返回false
+    std::pair<bool, UserInfo> CheckUser(const char *u) {
         std::pair<bool, UserInfo> res = user_map.FindModify(u, false);
-        if (!res.first) return {-1, UserInfo()}; // user doesn't exist
-        if (!res.second.logged_in) return {-1, UserInfo()}; // user hasn't logged in
-        return {res.second.order_num, res.second};
+        if (!res.first) return {false, {}}; // user doesn't exist
+        if (!res.second.logged_in) return {false, {}}; // user hasn't logged in
+        return {true, res.second};
     }
 
     bool AddUser(const char *c, const char *u, const char *p, const char *n, const char *m, int g) {
