@@ -80,7 +80,7 @@ std::pair<std::pair<int, TrainInfo>, SeatsDay> TrainSystem::QueryTrain(const cha
     return {{0, target_train}, SeatsDay(target_train.seat_num, target_train.station_num)};
 }
 
-Ticket::Ticket(const TrainInfo &src, int leave_index, int arrive_index, SeatsDay seats, int start_d) {
+Ticket::Ticket(const TrainInfo &src, int leave_index, int arrive_index, const SeatsDay &seats, int start_d) {
     strcpy(train_id, src.train_id);
     strcpy(leave_station_name, src.stations[leave_index]);
     strcpy(arrive_station_name, src.stations[arrive_index]);
@@ -95,6 +95,17 @@ Ticket::Ticket(const TrainInfo &src, int leave_index, int arrive_index, SeatsDay
     for (int k = leave_index; k < arrive_index; ++k) {
         if (seats.seats[k] < seat) seat = seats.seats[k];
     }
+}
+
+Ticket::Ticket(const TrainInfo &src, int leave_index, int arrive_index, int start_d) : seat(0) {
+    strcpy(train_id, src.train_id);
+    strcpy(leave_station_name, src.stations[leave_index]);
+    strcpy(arrive_station_name, src.stations[arrive_index]);
+    start_date = start_d;
+    leave_station_time = src.leaving_times[leave_index];
+    arrive_station_time = src.arriving_times[arrive_index];
+    time = arrive_station_time - leave_station_time;
+    cost = src.prices[arrive_index] - src.prices[leave_index];
 }
 
 Ticket::Ticket(const Ticket &other) : seat(other.seat), time(other.time), cost(other.cost), start_date(other.start_date) {
@@ -189,6 +200,11 @@ std::pair<bool, std::pair<Ticket, Ticket>> TrainSystem::QueryTransfer(int d, con
     std::pair<Ticket, Ticket> ans;
     bool has_ans = false;
 
+    sjtu::vector<TrainInfo> arrive_trains;
+    for (int k = 0; k < arrive.size(); ++k) {
+        arrive_trains.push_back(train_id_info_map.FindModify(arrive[k].train_id, false).second);
+    }
+
     for (int i = 0; i < leave.size(); ++i) {
         TrainInfo leave_train = train_id_info_map.FindModify(leave[i].train_id, false).second;
         // leave_train实际的发车日期
@@ -199,9 +215,8 @@ std::pair<bool, std::pair<Ticket, Ticket>> TrainSystem::QueryTransfer(int d, con
 
         for (int j = 0; j < arrive.size(); ++j) {
             if (strcmp(leave[i].train_id, arrive[j].train_id) == 0) continue;
-            TrainInfo arrive_train = train_id_info_map.FindModify(arrive[j].train_id, false).second;
 
-            std::pair<bool, std::pair<Ticket, Ticket>> tmp = CheckTrainStations(leave[i].index, arrive[j].index, key_is_time, leave_date, leave_train, arrive_train);
+            std::pair<bool, std::pair<Ticket, Ticket>> tmp = CheckTrainStations(leave[i].index, arrive[j].index, key_is_time, leave_date, leave_train, arrive_trains[j]);
             if (tmp.first) {
                 if (!has_ans) {
                     ans = tmp.second;
@@ -237,29 +252,28 @@ std::pair<bool, std::pair<Ticket, Ticket>> TrainSystem::CheckTrainStations(int l
                 else arrive_date = arrive_train.sale_date_start;
 
                 // 如果上述检查没有问题，即可以换乘
-                SeatsDay leave_seats = seats_day_file.ReadPage(leave_train.seats + leave_date * sizeof(SeatsDay));
-                SeatsDay arrive_seats = seats_day_file.ReadPage(arrive_train.seats + arrive_date * sizeof(SeatsDay));
-                std::pair<Ticket, Ticket> tmp = {{leave_train, leave_index, lv, leave_seats, leave_date}, {arrive_train, av, arrive_index, arrive_seats, arrive_date}};
+                std::pair<Ticket, Ticket> tmp = {{leave_train, leave_index, lv, leave_date}, {arrive_train, av, arrive_index, arrive_date}};
 
                 if (!has_ans) {
+                    SeatsDay leave_seats = seats_day_file.ReadPage(leave_train.seats + leave_date * sizeof(SeatsDay));
+                    SeatsDay arrive_seats = seats_day_file.ReadPage(arrive_train.seats + arrive_date * sizeof(SeatsDay));
+                    tmp.first.SetSeat(leave_seats, leave_index, lv);
+                    tmp.second.SetSeat(arrive_seats, av, arrive_index);
                     ans = tmp;
                     has_ans = true;
                 }
-                else {
-                    if (TicketPairCmp(tmp, ans, key_is_time)) ans = tmp;
+                else if (TicketPairCmp(tmp, ans, key_is_time)) {
+                    SeatsDay leave_seats = seats_day_file.ReadPage(leave_train.seats + leave_date * sizeof(SeatsDay));
+                    SeatsDay arrive_seats = seats_day_file.ReadPage(arrive_train.seats + arrive_date * sizeof(SeatsDay));
+                    tmp.first.SetSeat(leave_seats, leave_index, lv);
+                    tmp.second.SetSeat(arrive_seats, av, arrive_index);
+                    ans = tmp;
                 }
             }
         }
     }
 
     return {has_ans, ans};
-}
-
-std::pair<bool, TrainInfo> TrainSystem::GetTrain(const char *id) {
-    std::pair<bool, TrainInfo> target_train = train_id_info_map.FindModify(id, false);
-    if (!target_train.first) return {false, TrainInfo()};
-    if (!target_train.second.released) return {false, TrainInfo()};
-    return {true, target_train.second};
 }
 
 TrainSystem::TrainSystem(const std::string &train_system) : station_train_map(train_system + "1.1", train_system + "1.2", train_system + "1.3"),

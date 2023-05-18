@@ -63,7 +63,7 @@ bool String_comp(const String<MAXBits> &a, const String<MAXBits> &b) {
     return (strcmp(a.data, b.data) < 0);
 }
 
-template <typename keyType, typename valueType, int t = 27, int l = 27>
+template <typename keyType, typename valueType, int t, int l, int buffer_node, int buffer_leaf>
 class BPlusTree {
 private:
     class node {
@@ -83,8 +83,8 @@ private:
     };
 
     std::fstream file_inherit;
-    FileSystem<node, 150> file_node;
-    FileSystem<LeafNode, 150> file_leaf;
+    FileSystem<node, buffer_node> file_node;
+    FileSystem<LeafNode, buffer_leaf> file_leaf;
     Ptr root;
     bool root_is_leaf;
 

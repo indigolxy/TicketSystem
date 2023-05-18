@@ -64,10 +64,18 @@ private:
     int cost;
     int start_date; // 发车日期
 
+    void SetSeat(const SeatsDay &seats, int leave_index, int arrive_index) {
+        seat = seats.seats[arrive_index - 1];
+        for (int k = leave_index; k < arrive_index; ++k) {
+            if (seats.seats[k] < seat) seat = seats.seats[k];
+        }
+    }
+
 public:
     Ticket() = default;
 
-    Ticket(const TrainInfo &src, int leave_index, int arrive_index, SeatsDay seats, int start_d);
+    Ticket(const TrainInfo &src, int leave_index, int arrive_index, const SeatsDay &seats, int start_d);
+    Ticket(const TrainInfo &src, int leave_index, int arrive_index, int start_d);
 
     Ticket(const Ticket &other);
 
@@ -114,15 +122,19 @@ public:
 
 constexpr int StationTrainMapT = ((4096 - 5) / (StaionMAXLEN + 1 + TrainIDMAXLEN + 1 + 4) - 2) / 2;
 constexpr int StationTrainMapL = ((4096 - 8) / (StaionMAXLEN + 1 + TrainIDMAXLEN + 1 + sizeof(TrainStation)) - 2) / 2;
+constexpr int StationTrainMapBN = 100;
+constexpr int StationTrainMapBL = 100;
 constexpr int TrainIDInfoMapT = ((4096 - 5) / (TrainIDMAXLEN + 1 + 4) - 2) / 2;
 constexpr int TrainIDInfoMapL = ((4096 * 16 - 8) / (TrainIDMAXLEN + 1 + sizeof(TrainInfo)) - 2) / 2;
+constexpr int TrainIDInfoMapBN = 200;
+constexpr int TrainIDInfoMapBL = 150;
 
 class TrainSystem {
     friend class TicketSystem;
 private:
-    BPlusTree<std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>>, TrainStation, StationTrainMapT, StationTrainMapL> station_train_map;
-    BPlusTree<String<TrainIDMAXLEN>, TrainInfo, TrainIDInfoMapT, TrainIDInfoMapL> train_id_info_map;
-    FileSystem<SeatsDay, 10> seats_day_file;
+    BPlusTree<std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>>, TrainStation, StationTrainMapT, StationTrainMapL, StationTrainMapBN, StationTrainMapBL> station_train_map;
+    BPlusTree<String<TrainIDMAXLEN>, TrainInfo, TrainIDInfoMapT, TrainIDInfoMapL, TrainIDInfoMapBN, TrainIDInfoMapBL> train_id_info_map;
+    FileSystem<SeatsDay, 150> seats_day_file;
 
     static bool TrainStationCmp(const std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>> &a, const std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>> &b) {
         return strcmp(a.first.data, b.first.data) < 0;
@@ -154,9 +166,6 @@ public:
     sjtu::vector<Ticket> QueryTicket(int d, const char *s, const char *t, bool key_is_time);
 
     std::pair<bool, std::pair<Ticket, Ticket>> QueryTransfer(int d, const char *s, const char *t, bool key_is_time);
-
-    // * 检查train是否已经发布，若失败返回false
-    std::pair<bool, TrainInfo> GetTrain(const char *id);
 };
 
 #endif //TICKETSYSTEM_TRAINSYSTEM_H

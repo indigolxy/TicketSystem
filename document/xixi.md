@@ -180,11 +180,40 @@ int num, char user_id[], **int time_stamp**
 2. find函数用于重复键值bpt
 3. FindModify用于单一键值，单纯find或修改目标key对应的value（key不存在返回false）
 
-# todo
-1. 替换Waitlistkeytype的最后一个参数为一个WaitingOrder独有的
-2. 时间优化：CheckTrainStation中可以先比较tmp与ans，若tmp优于ans，再文件读写获取seats
-3. 时间优化：BuyTicket中不用整个waitingorder来找大小
-
-# 注意事项&bugs
+# 注意事项&bugs&log
 1. 所有需要输出的，函数都只返回Info类或vector<Info>，在Info类重载输出，后续统一输出
 2. waitlist直接删除的话，status代表的num会出问题！不是从0-1连续的！解决方法：替换Waitlistkeytype的最后一个参数为一个WaitingOrder独有的
+3. 优化：QueryTransfer,减少对arrive_train的重复文件读写
+4. 时间优化：CheckTrainStation中可以先比较tmp与ans，若tmp优于ans，再文件读写获取seats
+5. 优化：修改getTrain（删了）和CheckUser接口
+
+# 所有文件
+## user_map
+bpt: username->userInfo
+### usage
+add_user(2), login(2), logout(2), query_profile(2), modify_profile(3), buy_ticket(1), query_order(1), refund_ticket(1)
+
+## station_train_map
+bpt: {station, trainID}->TrainStation
+### usage
+release_train(station_num), query_ticket(2), query_transfer(2)
+
+## train_id_info_map(SF)
+bpt: trainID->trainInfo的bpt
+### usage
+add_train(1), delete_train(2), release_train(2), query_train(1), query_ticket(交集中的所有train), query_transfer(找到的所有train), buy_ticket(1)
+
+## order_map
+bpt: {username, time_stamp}->Order
+### usage
+buy_ticket(1), query_order(1), refund_ticket(3 + waiting_num * 2)
+
+## wait_list
+bpt: {{trainID, day}, time_stamp}->WaitingOrder
+### usage
+buy_ticket(1), refund_ticket(2 + waiting_num)
+
+## seats_day_file(SF)
+file: SeatsDay
+### usage
+release_train(93), query_train(1), query_ticket(目前最优的所有方案), query_transfer(最优方案 * 2)

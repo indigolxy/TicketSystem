@@ -45,11 +45,13 @@ public:
 
 constexpr int UserMapT = ((4096 - 5) / (UserNameMAXLEN + 1 + 4) - 2) / 2;
 constexpr int UserMapL = ((4096 * 2 - 8) / (UserNameMAXLEN + 1 + sizeof(UserInfo)) - 2) / 2;
+constexpr int UserMapBN = 100;
+constexpr int UserMapBL = 100;
 
 class UserSystem {
     friend class TicketSystem;
 private:
-    BPlusTree<String<UserNameMAXLEN>, UserInfo, UserMapT, UserMapL> user_map;
+    BPlusTree<String<UserNameMAXLEN>, UserInfo, UserMapT, UserMapL, UserMapBN, UserMapBL> user_map;
 
     static UserInfo Operation(UserInfo obj) {
         obj.logged_in = false;
@@ -60,11 +62,10 @@ public:
     UserSystem(const std::string &user_system) : user_map(user_system + "1", user_system + "2", user_system + "3") {}
 
     // * 若user不存在或未登录返回false
-    std::pair<bool, UserInfo> CheckUser(const char *u) {
+    bool CheckUser(const char *u) {
         std::pair<bool, UserInfo> res = user_map.FindModify(u, false);
-        if (!res.first) return {false, {}}; // user doesn't exist
-        if (!res.second.logged_in) return {false, {}}; // user hasn't logged in
-        return {true, res.second};
+        if (!res.first || !res.second.logged_in) return false;
+        return true;
     }
 
     bool AddUser(const char *c, const char *u, const char *p, const char *n, const char *m, int g) {

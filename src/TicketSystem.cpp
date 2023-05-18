@@ -16,12 +16,11 @@ void TicketSystem::CheckOrder(const WaitingOrder &order, SeatsDay &seats) {
 }
 
 int TicketSystem::BuyTicket(const char *u, const char *id, int d, const char *f, const char *t, int n, bool can_wait, int time_stamp) {
-    std::pair<bool, UserInfo> res = user_system.CheckUser(u);
-    if (!res.first) return -1;
-    std::pair<bool, TrainInfo> tmp = train_system.GetTrain(id);
-    if (!tmp.first) return -1;
+    if (!user_system.CheckUser(u)) return -1;
+    std::pair<bool, TrainInfo> target_train = train_system.train_id_info_map.FindModify(id, false);
+    if (!target_train.first || !target_train.second.released) return -1;
 
-    TrainInfo train = tmp.second;
+    const TrainInfo &train = target_train.second;
     if (n > train.seat_num) return -1; // 购买票数超过总座位数，购票失败
     int leave_index = 0, arrive_index = 0;
     for (int i = 1; i <= train.station_num; ++i) {
@@ -61,7 +60,7 @@ int TicketSystem::BuyTicket(const char *u, const char *id, int d, const char *f,
     else {
         order.status = 0;
         WaitingOrder waiting_order(leave_index, arrive_index, n, u, time_stamp);
-        bool debug = wait_list.insert({{train.train_id, d}, time_stamp}, waiting_order);
+        wait_list.insert({{train.train_id, d}, time_stamp}, waiting_order);
     }
     order_map.insert({u, time_stamp}, order);
 
@@ -70,12 +69,12 @@ int TicketSystem::BuyTicket(const char *u, const char *id, int d, const char *f,
 }
 
 std::pair<bool, sjtu::vector<Order>> TicketSystem::QueryOrder(const char *u) {
-    if (!user_system.CheckUser(u).first) return {false, {}};
+    if (!user_system.CheckUser(u)) return {false, {}};
     return {true, order_map.find({u, 0}, OrderMapCmp)};
 }
 
 bool TicketSystem::RefundTicket(const char *u, int n) {
-    if (!user_system.CheckUser(u).first) return false;
+    if (!user_system.CheckUser(u)) return false;
     sjtu::vector<Order> orders = order_map.find({u, 0}, OrderMapCmp);
     int index = orders.size() - n;
     if (index < 0) return false;
@@ -464,8 +463,8 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
     }
 }
 
-TicketSystem::TicketSystem(const std::string &order_map, const std::string &train_system, const std::string &user_system) :
-order_map(order_map + "1", order_map + "2", order_map + "3"), wait_list(order_map + "4", order_map + "5", order_map + "6"),
+TicketSystem::TicketSystem(const std::string &ticket_system, const std::string &train_system, const std::string &user_system) :
+order_map(ticket_system + "1", ticket_system + "2", ticket_system + "3"), wait_list(ticket_system + "4", ticket_system + "5", ticket_system + "6"),
 train_system(train_system), user_system(user_system) {}
 
 void TicketSystem::Exit() {

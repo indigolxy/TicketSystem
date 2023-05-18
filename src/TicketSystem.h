@@ -72,13 +72,17 @@ public:
 
 constexpr int OrderMapT = ((4096 - 5) / (4 + UserNameMAXLEN + 1 + 4) - 2) / 2;
 constexpr int OrderMapL = ((4096 * 2 - 8) / (4 + UserNameMAXLEN + 1 + sizeof(Order)) - 2) / 2;
+constexpr int OrderMapBN = 40;
+constexpr int OrderMapBL = 40;
 constexpr int WaitListT = ((4096 - 5) / (4 + TrainIDMAXLEN + 1 + 4 + 4) - 2) / 2;
 constexpr int WaitListL = ((4096 - 8) / (4 + TrainIDMAXLEN + 1 + 4 + sizeof(WaitingOrder)) - 2) / 2;
+constexpr int WaitListBN = 30;
+constexpr int WaitListBL = 30;
 
 class TicketSystem {
 private:
-    BPlusTree<std::pair<String<UserNameMAXLEN>, int>, Order, OrderMapT, OrderMapL> order_map;
-    BPlusTree<std::pair<std::pair<String<TrainIDMAXLEN>, int>, int>, WaitingOrder, WaitListT, WaitListL> wait_list;
+    BPlusTree<std::pair<String<UserNameMAXLEN>, int>, Order, OrderMapT, OrderMapL, OrderMapBN, OrderMapBL> order_map;
+    BPlusTree<std::pair<std::pair<String<TrainIDMAXLEN>, int>, int>, WaitingOrder, WaitListT, WaitListL, WaitListBN, WaitListBL> wait_list;
     UserSystem user_system;
     TrainSystem train_system;
 

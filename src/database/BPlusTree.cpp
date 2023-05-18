@@ -3,14 +3,14 @@
 #include "../UserSystem.h"
 #include "../TrainSystem.h"
 
-template class BPlusTree<std::pair<String<UserNameMAXLEN>, int>, Order, OrderMapT, OrderMapL>;
-template class BPlusTree<std::pair<std::pair<String<TrainIDMAXLEN>, int>, int>, WaitingOrder, WaitListT, WaitListL>;
-template class BPlusTree<std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>>, TrainStation, StationTrainMapT, StationTrainMapL>;
-template class BPlusTree<String<TrainIDMAXLEN>, TrainInfo, TrainIDInfoMapT, TrainIDInfoMapL>;
-template class BPlusTree<String<UserNameMAXLEN>, UserInfo, UserMapT, UserMapL>;
+template class BPlusTree<std::pair<String<UserNameMAXLEN>, int>, Order, OrderMapT, OrderMapL, OrderMapBN, OrderMapBL>;
+template class BPlusTree<std::pair<std::pair<String<TrainIDMAXLEN>, int>, int>, WaitingOrder, WaitListT, WaitListL, WaitListBN, WaitListBL>;
+template class BPlusTree<std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>>, TrainStation, StationTrainMapT, StationTrainMapL, StationTrainMapBN, StationTrainMapBL>;
+template class BPlusTree<String<TrainIDMAXLEN>, TrainInfo, TrainIDInfoMapT, TrainIDInfoMapL, TrainIDInfoMapBN, TrainIDInfoMapBL>;
+template class BPlusTree<String<UserNameMAXLEN>, UserInfo, UserMapT, UserMapL, UserMapBN, UserMapBL>;
 
-template <typename keyType, typename valueType, int t, int l>
-BPlusTree<keyType, valueType, t, l>::BPlusTree(const std::string &file_name_inherit,
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+BPlusTree<keyType, valueType, t, l, bn, bl>::BPlusTree(const std::string &file_name_inherit,
                                                const std::string &file_name_node,
                                                const std::string &file_name_leaf)
                                                : file_node(file_name_node), file_leaf(file_name_leaf) {
@@ -32,8 +32,8 @@ BPlusTree<keyType, valueType, t, l>::BPlusTree(const std::string &file_name_inhe
     }
 }
 
-template <typename keyType, typename valueType, int t, int l>
-BPlusTree<keyType, valueType, t, l>::~BPlusTree() {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+BPlusTree<keyType, valueType, t, l, bn, bl>::~BPlusTree() {
     file_inherit.seekp(std::ios::beg);
     file_inherit.write(reinterpret_cast<const char *> (&root), sizeof(Ptr));
     file_inherit.write(reinterpret_cast<const char *> (&root_is_leaf), sizeof(bool));
@@ -41,8 +41,8 @@ BPlusTree<keyType, valueType, t, l>::~BPlusTree() {
     file_inherit.clear();
 }
 
-template <typename keyType, typename valueType, int t, int l>
-std::pair<int, bool> BPlusTree<keyType, valueType, t, l>::FindKey(const keyType keys[], int key_num, const keyType &key) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+std::pair<int, bool> BPlusTree<keyType, valueType, t, l, bn, bl>::FindKey(const keyType keys[], int key_num, const keyType &key) {
     if (key_num == 0) return {1, false};
     int lf = 1, rt = key_num;
     while (lf < rt) {
@@ -56,8 +56,8 @@ std::pair<int, bool> BPlusTree<keyType, valueType, t, l>::FindKey(const keyType 
     return {lf, false};
 }
 
-template <typename keyType, typename valueType, int t, int l>
-std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l>::InsertIntoLeafNode(LeafNode target_node, Ptr target_pos, const keyType &key, const valueType &value) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l, bn, bl>::InsertIntoLeafNode(LeafNode target_node, Ptr target_pos, const keyType &key, const valueType &value) {
     std::pair<int, bool> tmp = FindKey(target_node.keys, target_node.key_num, key);
     // 如果已经存在这一key，什么都不做
     if (tmp.second) return {keyType(), -2};
@@ -81,8 +81,8 @@ std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l>::InsertIntoLeafNode(
     return SplitLeafNode(target_node, target_pos);
 }
 
-template <typename keyType, typename valueType, int t, int l>
-std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l>::SplitLeafNode(LeafNode target_node, Ptr target_pos) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l, bn, bl>::SplitLeafNode(LeafNode target_node, Ptr target_pos) {
     LeafNode tmp;
     tmp.key_num = l + 1;
     for (int i = 1; i <= l + 1; ++i) {
@@ -98,8 +98,8 @@ std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l>::SplitLeafNode(LeafN
     return {tmp.keys[1], tmp_pos};
 }
 
-template <typename keyType, typename valueType, int t, int l>
-std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l>::InsertIntoNode(node target_node, Ptr target_pos, const keyType &key, const valueType &value) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l, bn, bl>::InsertIntoNode(node target_node, Ptr target_pos, const keyType &key, const valueType &value) {
     std::pair<int, bool> tmp = FindKey(target_node.keys, target_node.key_num, key);
     std::pair<keyType, Ptr> res;
     Ptr next_pos = target_node.sons[tmp.first];
@@ -140,8 +140,8 @@ std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l>::InsertIntoNode(node
     return {keyType(), -1};
 }
 
-template <typename keyType, typename valueType, int t, int l>
-std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l>::SplitNode(BPlusTree::node target_node, Ptr target_pos) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l, bn, bl>::SplitNode(BPlusTree::node target_node, Ptr target_pos) {
     node tmp;
     tmp.key_num = t;
     for (int i = 1; i <= t; ++i) {
@@ -157,8 +157,8 @@ std::pair<keyType, Ptr> BPlusTree<keyType, valueType, t, l>::SplitNode(BPlusTree
     return {target_node.keys[t + 1], tmp_pos};
 }
 
-template <typename keyType, typename valueType, int t, int l>
-bool BPlusTree<keyType, valueType, t, l>::insert(const keyType &key, const valueType &value) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+bool BPlusTree<keyType, valueType, t, l, bn, bl>::insert(const keyType &key, const valueType &value) {
     // 是空树
     if (root == -1) {
         LeafNode tmp;
@@ -243,8 +243,8 @@ void BPlusTree<keyType, valueType, t, l>::print() {
 }
  */
 
-template <typename keyType, typename valueType, int t, int l>
-std::pair<int, bool> BPlusTree<keyType, valueType, t, l>::FindFirstKey(const keyType *keys, int key_num, const keyType &key, bool (*comp)(const keyType &, const keyType &)) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+std::pair<int, bool> BPlusTree<keyType, valueType, t, l, bn, bl>::FindFirstKey(const keyType *keys, int key_num, const keyType &key, bool (*comp)(const keyType &, const keyType &)) {
     int lf = 1, rt = key_num;
     int ans = 0;
     while (lf < rt) {
@@ -266,16 +266,16 @@ std::pair<int, bool> BPlusTree<keyType, valueType, t, l>::FindFirstKey(const key
     return {lf, false};
 }
 
-template <typename keyType, typename valueType, int t, int l>
-Ptr BPlusTree<keyType, valueType, t, l>::FindinNode(Ptr pos, const keyType &key, bool (*comp)(const keyType &, const keyType &)) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+Ptr BPlusTree<keyType, valueType, t, l, bn, bl>::FindinNode(Ptr pos, const keyType &key, bool (*comp)(const keyType &, const keyType &)) {
     node tmp = file_node.ReadPage(pos);
     int res = FindFirstKey(tmp.keys, tmp.key_num, key, comp).first;
     if (tmp.son_is_leaf) return tmp.sons[res];
     return FindinNode(tmp.sons[res], key, comp);
 }
 
-template <typename keyType, typename valueType, int t, int l>
-sjtu::vector<valueType> BPlusTree<keyType, valueType, t, l>::FindinLeafNode(Ptr pos, const keyType &key, bool (*comp)(const keyType &, const keyType &)) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+sjtu::vector<valueType> BPlusTree<keyType, valueType, t, l, bn, bl>::FindinLeafNode(Ptr pos, const keyType &key, bool (*comp)(const keyType &, const keyType &)) {
     LeafNode tmp = file_leaf.ReadPage(pos);
     sjtu::vector<valueType> ans;
     std::pair<int, bool> res = FindFirstKey(tmp.keys, tmp.key_num, key, comp);
@@ -302,15 +302,15 @@ sjtu::vector<valueType> BPlusTree<keyType, valueType, t, l>::FindinLeafNode(Ptr 
     return ans;
 }
 
-template <typename keyType, typename valueType, int t, int l>
-sjtu::vector<valueType> BPlusTree<keyType, valueType, t, l>::find(const keyType &key, bool (*comp)(const keyType &, const keyType &)) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+sjtu::vector<valueType> BPlusTree<keyType, valueType, t, l, bn, bl>::find(const keyType &key, bool (*comp)(const keyType &, const keyType &)) {
     if (root == -1) return sjtu::vector<valueType>();
     if (root_is_leaf) return FindinLeafNode(root, key, comp);
     return FindinLeafNode(FindinNode(root, key, comp), key, comp);
 }
 
-template <typename keyType, typename valueType, int t, int l>
-std::pair<int, std::pair<typename BPlusTree<keyType, valueType, t, l>::LeafNode, keyType>> BPlusTree<keyType, valueType, t, l>::EraseFromLeafNode(Ptr pos, const keyType &key) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+std::pair<int, std::pair<typename BPlusTree<keyType, valueType, t, l, bn, bl>::LeafNode, keyType>> BPlusTree<keyType, valueType, t, l, bn, bl>::EraseFromLeafNode(Ptr pos, const keyType &key) {
     LeafNode tmp = file_leaf.ReadPage(pos);
     std::pair<int, bool> res = FindKey(tmp.keys, tmp.key_num, key);
     // 找不到：什么都不做
@@ -331,8 +331,8 @@ std::pair<int, std::pair<typename BPlusTree<keyType, valueType, t, l>::LeafNode,
     return {1, {tmp, tmp.keys[1]}};
 }
 
-template <typename keyType, typename valueType, int t, int l>
-std::pair<int, std::pair<typename BPlusTree<keyType, valueType, t, l>::node, keyType>> BPlusTree<keyType, valueType, t, l>::EraseFromNode(Ptr pos, const keyType &key) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+std::pair<int, std::pair<typename BPlusTree<keyType, valueType, t, l, bn, bl>::node, keyType>> BPlusTree<keyType, valueType, t, l, bn, bl>::EraseFromNode(Ptr pos, const keyType &key) {
     node tmp = file_node.ReadPage(pos);
     std::pair<int, bool> find_res = FindKey(tmp.keys, tmp.key_num, key);
     // ! find_res.first可能为0！elder也可能为0!
@@ -423,8 +423,8 @@ std::pair<int, std::pair<typename BPlusTree<keyType, valueType, t, l>::node, key
     return {1, {tmp, res_key}};
 }
 
-template <typename keyType, typename valueType, int t, int l>
-std::pair<int, keyType> BPlusTree<keyType, valueType, t, l>::BorrowLeafNode(Ptr pos, BPlusTree::LeafNode target_node, Ptr elder, Ptr younger) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+std::pair<int, keyType> BPlusTree<keyType, valueType, t, l, bn, bl>::BorrowLeafNode(Ptr pos, BPlusTree::LeafNode target_node, Ptr elder, Ptr younger) {
     if (elder != -1) {
         LeafNode tmp = file_leaf.ReadPage(elder);
         if (tmp.key_num > l) {
@@ -460,8 +460,8 @@ std::pair<int, keyType> BPlusTree<keyType, valueType, t, l>::BorrowLeafNode(Ptr 
     return {0, keyType()};
 }
 
-template <typename keyType, typename valueType, int t, int l>
-std::pair<int, keyType> BPlusTree<keyType, valueType, t, l>::BorrowNode(Ptr pos, BPlusTree::node target_node, Ptr elder, Ptr younger, const keyType &left_fa, const keyType &right_fa) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+std::pair<int, keyType> BPlusTree<keyType, valueType, t, l, bn, bl>::BorrowNode(Ptr pos, BPlusTree::node target_node, Ptr elder, Ptr younger, const keyType &left_fa, const keyType &right_fa) {
     if (elder != -1) {
         node tmp = file_node.ReadPage(elder);
         if (tmp.key_num > t) {
@@ -501,8 +501,8 @@ std::pair<int, keyType> BPlusTree<keyType, valueType, t, l>::BorrowNode(Ptr pos,
     return {0, keyType()};
 }
 
-template <typename keyType, typename valueType, int t, int l>
-void BPlusTree<keyType, valueType, t, l>::MergeLeafNode(Ptr pos, BPlusTree::LeafNode target_node, Ptr brother, int sign) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+void BPlusTree<keyType, valueType, t, l, bn, bl>::MergeLeafNode(Ptr pos, BPlusTree::LeafNode target_node, Ptr brother, int sign) {
     LeafNode tmp = file_leaf.ReadPage(brother);
     if (sign == 1) {
         target_node.key_num = 2 * l - 1;
@@ -526,8 +526,8 @@ void BPlusTree<keyType, valueType, t, l>::MergeLeafNode(Ptr pos, BPlusTree::Leaf
     }
 }
 
-template <typename keyType, typename valueType, int t, int l>
-void BPlusTree<keyType, valueType, t, l>::MergeNode(Ptr pos, BPlusTree::node target_node, Ptr brother, int sign, const keyType &fa) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+void BPlusTree<keyType, valueType, t, l, bn, bl>::MergeNode(Ptr pos, BPlusTree::node target_node, Ptr brother, int sign, const keyType &fa) {
     node tmp = file_node.ReadPage(brother);
     if (sign == 1) {
         target_node.key_num = 2 * t;
@@ -553,8 +553,8 @@ void BPlusTree<keyType, valueType, t, l>::MergeNode(Ptr pos, BPlusTree::node tar
     }
 }
 
-template <typename keyType, typename valueType, int t, int l>
-bool BPlusTree<keyType, valueType, t, l>::remove(const keyType &key) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+bool BPlusTree<keyType, valueType, t, l, bn, bl>::remove(const keyType &key) {
     if (root == -1) return false;
     if (root_is_leaf) {
         LeafNode tmp = file_leaf.ReadPage(root);
@@ -577,16 +577,16 @@ bool BPlusTree<keyType, valueType, t, l>::remove(const keyType &key) {
     return true;
 }
 
-template <typename keyType, typename valueType, int t, int l>
-std::pair<bool, valueType> BPlusTree<keyType, valueType, t, l>::FindModify(const keyType &key, bool need_modify, const valueType &value) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+std::pair<bool, valueType> BPlusTree<keyType, valueType, t, l, bn, bl>::FindModify(const keyType &key, bool need_modify, const valueType &value) {
     // 空树
     if (root == -1) return {false, valueType()};
     if (root_is_leaf) return FindModifyInLeafNode(root, key, need_modify, value);
     return FindModifyInLeafNode(FindModifyInNode(root, key), key, need_modify, value);
 }
 
-template <typename keyType, typename valueType, int t, int l>
-std::pair<bool, valueType> BPlusTree<keyType, valueType, t, l>::FindModifyInLeafNode(Ptr pos, const keyType &key, bool need_modify, const valueType &value) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+std::pair<bool, valueType> BPlusTree<keyType, valueType, t, l, bn, bl>::FindModifyInLeafNode(Ptr pos, const keyType &key, bool need_modify, const valueType &value) {
     LeafNode tmp = file_leaf.ReadPage(pos);
     std::pair<int, bool> res = FindKey(tmp.keys, tmp.key_num, key);
     if (!res.second) return {false, valueType()}; // 没找到
@@ -596,16 +596,16 @@ std::pair<bool, valueType> BPlusTree<keyType, valueType, t, l>::FindModifyInLeaf
     return {true, value};
 }
 
-template <typename keyType, typename valueType, int t, int l>
-Ptr BPlusTree<keyType, valueType, t, l>::FindModifyInNode(Ptr pos, const keyType &key) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+Ptr BPlusTree<keyType, valueType, t, l, bn, bl>::FindModifyInNode(Ptr pos, const keyType &key) {
     node tmp = file_node.ReadPage(pos);
     int res = FindKey(tmp.keys, tmp.key_num, key).first;
     if (tmp.son_is_leaf) return tmp.sons[res];
     return FindModifyInNode(tmp.sons[res], key);
 }
 
-template <typename keyType, typename valueType, int t, int l>
-void BPlusTree<keyType, valueType, t, l>::traverse(valueType (*operation)(valueType)) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+void BPlusTree<keyType, valueType, t, l, bn, bl>::traverse(valueType (*operation)(valueType)) {
     if (root == -1) return;
     if (root_is_leaf) TraverseLeafNode(root, operation);
     else {
@@ -617,8 +617,8 @@ void BPlusTree<keyType, valueType, t, l>::traverse(valueType (*operation)(valueT
     }
 }
 
-template <typename keyType, typename valueType, int t, int l>
-void BPlusTree<keyType, valueType, t, l>::TraverseLeafNode(Ptr pos, valueType (*operation)(valueType value)) {
+template <typename keyType, typename valueType, int t, int l, int bn, int bl>
+void BPlusTree<keyType, valueType, t, l, bn, bl>::TraverseLeafNode(Ptr pos, valueType (*operation)(valueType value)) {
     LeafNode tmp = file_leaf.ReadPage(pos);
     for (int i = 1; i <= tmp.key_num; ++i) {
         tmp.values[i] = operation(tmp.values[i]);
