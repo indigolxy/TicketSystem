@@ -10,32 +10,65 @@ using Ptr = int;
 
 template <int MAXBits>
 struct String {
-    char data[MAXBits + 1] = {0};
+    char data[MAXBits + 1];
 
-    String() = default;
+    String() {
+        data[0] = data[MAXBits] = '\0';
+    }
     String(const std::string &s) {
-        for (int i = 0; i < s.length(); ++i) {
+        int i = 0;
+        for (; s[i] != '\0'; ++i) {
             data[i] = s[i];
         }
+        data[i] = '\0';
     }
     String(const char *s) {
-        strcpy(data, s);
+        int i = 0;
+        for (; s[i] != '\0'; ++i) {
+            data[i] = s[i];
+        }
+        data[i] = '\0';
     }
     bool operator==(const String &other) const {
-        return (strcmp(data, other.data) == 0);
+        int i = 0;
+        while (true) {
+            if (data[i] == '\0' && other.data[i] == '\0') return true;
+            if (data[i] == '\0' || other.data[i] == '\0') return false;
+            if (data[i] != other.data[i]) return false;
+            ++i;
+        }
     }
     bool operator<(const String &other) const {
-        return (strcmp(data, other.data) < 0);
+        int i = 0;
+        while (true) {
+            if (data[i] == '\0' && other.data[i] == '\0') return false;
+            if (data[i] == '\0') return true;
+            if (other.data[i] == '\0') return false;
+            if (data[i] < other.data[i]) return true;
+            if (data[i] > other.data[i]) return false;
+            ++i;
+        }
     }
     bool operator>(const String &other) const {
-        return (strcmp(data, other.data) > 0);
+        int i = 0;
+        while (true) {
+            if (data[i] == '\0' && other.data[i] == '\0') return false;
+            if (data[i] == '\0') return false;
+            if (other.data[i] == '\0') return true;
+            if (data[i] < other.data[i]) return false;
+            if (data[i] > other.data[i]) return true;
+            ++i;
+        }
     }
     friend std::ostream &operator<<(std::ostream &os, const String &obj) {
-        os << obj.data;
+        for (int i = 0; obj.data[i] != '\0'; ++i) {
+            os << obj.data[i];
+        }
         return os;
     }
 };
 
+/*
 template <int MAXBits>
 struct MyPair {
     String<MAXBits> k;
@@ -62,6 +95,7 @@ template <int MAXBits>
 bool String_comp(const String<MAXBits> &a, const String<MAXBits> &b) {
     return (strcmp(a.data, b.data) < 0);
 }
+ */
 
 template <typename keyType, typename valueType, int t, int l, int buffer_node, int buffer_leaf>
 class BPlusTree {
@@ -89,13 +123,13 @@ private:
         keyType keys[2 * l + 2] = {};
         valueType values[2 * l + 2] = {};
     public:
-        LeafNode() = default;
-        LeafNode(const LeafNode &other) : key_num(other.key_num), next_leaf(other.next_leaf) {
-            for (int i = 1; i <= key_num; ++i) {
-                keys[i] = other.keys[i];
-                values[i] = other.values[i];
-            }
-        }
+//        LeafNode() = default;
+//        LeafNode(const LeafNode &other) : key_num(other.key_num), next_leaf(other.next_leaf) {
+//            for (int i = 1; i <= key_num; ++i) {
+//                keys[i] = other.keys[i];
+//                values[i] = other.values[i];
+//            }
+//        }
     };
 
     std::fstream file_inherit;
