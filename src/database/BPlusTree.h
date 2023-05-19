@@ -72,14 +72,30 @@ private:
         bool son_is_leaf = true;
         keyType keys[2 * t + 2];
         Ptr sons[2 * t + 2] = {-1};
+    public:
+        node() = default;
+        node(const node &other) : key_num(other.key_num), son_is_leaf(other.son_is_leaf) {
+            for (int i = 0; i <= key_num; ++i) {
+                keys[i] = other.keys[i];
+                sons[i] = other.sons[i];
+            }
+        }
     };
 
     class LeafNode {
         friend class BPlusTree;
         int key_num = 0;
         Ptr next_leaf = -1;
-        keyType keys[2 * l + 2];
-        valueType values[2 * l + 2];
+        keyType keys[2 * l + 2] = {};
+        valueType values[2 * l + 2] = {};
+    public:
+        LeafNode() = default;
+        LeafNode(const LeafNode &other) : key_num(other.key_num), next_leaf(other.next_leaf) {
+            for (int i = 1; i <= key_num; ++i) {
+                keys[i] = other.keys[i];
+                values[i] = other.values[i];
+            }
+        }
     };
 
     std::fstream file_inherit;
