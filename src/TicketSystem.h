@@ -71,13 +71,13 @@ public:
 };
 
 constexpr int OrderMapT = ((4096 - 5) / (4 + UserNameMAXLEN + 1 + 4) - 2) / 2;
-constexpr int OrderMapL = ((4096 * 2 - 8) / (4 + UserNameMAXLEN + 1 + sizeof(Order)) - 2) / 2;
-constexpr int OrderMapBN = 40;
-constexpr int OrderMapBL = 40;
+constexpr int OrderMapL = ((4096 - 8) / (4 + UserNameMAXLEN + 1 + sizeof(Order)) - 2) / 2;
+constexpr int OrderMapBN = 16;
+constexpr int OrderMapBL = 16; // 128K
 constexpr int WaitListT = ((4096 - 5) / (4 + TrainIDMAXLEN + 1 + 4 + 4) - 2) / 2;
 constexpr int WaitListL = ((4096 - 8) / (4 + TrainIDMAXLEN + 1 + 4 + sizeof(WaitingOrder)) - 2) / 2;
-constexpr int WaitListBN = 30;
-constexpr int WaitListBL = 30;
+constexpr int WaitListBN = 16;
+constexpr int WaitListBL = 16; // 128K
 
 class TicketSystem {
 private:

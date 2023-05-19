@@ -43,10 +43,10 @@ public:
     }
 };
 
-constexpr int UserMapT = ((4096 - 5) / (UserNameMAXLEN + 1 + 4) - 2) / 2;
+constexpr int UserMapT = ((4096 * 2 - 5) / (UserNameMAXLEN + 1 + 4) - 2) / 2;
 constexpr int UserMapL = ((4096 * 2 - 8) / (UserNameMAXLEN + 1 + sizeof(UserInfo)) - 2) / 2;
-constexpr int UserMapBN = 100;
-constexpr int UserMapBL = 100;
+constexpr int UserMapBN = 32;
+constexpr int UserMapBL = 32; // 512K
 
 class UserSystem {
     friend class TicketSystem;

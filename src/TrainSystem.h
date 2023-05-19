@@ -120,14 +120,14 @@ public:
     std::string PrintTrain(const SeatsDay &seats_day, int start_day);
 };
 
-constexpr int StationTrainMapT = ((4096 - 5) / (StaionMAXLEN + 1 + TrainIDMAXLEN + 1 + 4) - 2) / 2;
-constexpr int StationTrainMapL = ((4096 - 8) / (StaionMAXLEN + 1 + TrainIDMAXLEN + 1 + sizeof(TrainStation)) - 2) / 2;
-constexpr int StationTrainMapBN = 100;
-constexpr int StationTrainMapBL = 100;
-constexpr int TrainIDInfoMapT = ((4096 - 5) / (TrainIDMAXLEN + 1 + 4) - 2) / 2;
+constexpr int StationTrainMapT = ((4096 * 2 - 5) / (StaionMAXLEN + 1 + TrainIDMAXLEN + 1 + 4) - 2) / 2;
+constexpr int StationTrainMapL = ((4096 * 2 - 8) / (StaionMAXLEN + 1 + TrainIDMAXLEN + 1 + sizeof(TrainStation)) - 2) / 2;
+constexpr int StationTrainMapBN = 32;
+constexpr int StationTrainMapBL = 32; // 512K
+constexpr int TrainIDInfoMapT = ((4096 * 4 - 5) / (TrainIDMAXLEN + 1 + 4) - 2) / 2;
 constexpr int TrainIDInfoMapL = ((4096 * 16 - 8) / (TrainIDMAXLEN + 1 + sizeof(TrainInfo)) - 2) / 2;
-constexpr int TrainIDInfoMapBN = 200;
-constexpr int TrainIDInfoMapBL = 150;
+constexpr int TrainIDInfoMapBN = 42;
+constexpr int TrainIDInfoMapBL = 42; // 3360K
 
 class TrainSystem {
     friend class TicketSystem;
