@@ -3,6 +3,7 @@
 #include <filesystem>
 
 int main() {
+    std::ios::sync_with_stdio(false);
     std::filesystem::path pathh{"files"};
     std::filesystem::create_directory(pathh);
     auto *ticket_system = new TicketSystem("files/order.file", "files/train.file", "files/user.file");

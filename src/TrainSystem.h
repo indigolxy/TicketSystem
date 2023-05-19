@@ -14,6 +14,7 @@ constexpr int MinADay = 24 * 60;
 
 class TrainSystem;
 class TrainInfo;
+class TrainStation;
 
 class SeatsDay {
     friend class TrainSystem;
@@ -35,19 +36,6 @@ public:
         for (int i = 1; i < station_num; ++i) {
             seats[i] = seat_num;
         }
-    }
-};
-
-class TrainStation {
-    friend class TrainSystem;
-private:
-    char train_id[TrainIDMAXLEN + 1];
-    int index; // 在bpt中对应station在该车次中的下标
-
-public:
-    TrainStation() = default;
-    TrainStation(const char *id, int ind) : index(ind) {
-        strcpy(train_id, id);
     }
 };
 
@@ -74,7 +62,7 @@ private:
 public:
     Ticket() = default;
 
-    Ticket(const TrainInfo &src, int leave_index, int arrive_index, const SeatsDay &seats, int start_d);
+    Ticket(const TrainStation &leave, const TrainStation &arrive, const SeatsDay &seats, int start_d);
     Ticket(const TrainInfo &src, int leave_index, int arrive_index, int start_d);
 
     Ticket(const Ticket &other);
@@ -118,6 +106,31 @@ private:
 public:
     TrainInfo() = default;
     std::string PrintTrain(const SeatsDay &seats_day, int start_day);
+};
+
+class TrainStation {
+    friend class TrainSystem;
+    friend class Ticket;
+private:
+    char train_id[TrainIDMAXLEN + 1];
+    int index; // 在bpt中对应station在该车次中的下标
+    int leaving_time;
+    int arriving_time;
+    int price;
+    int sale_date_start;
+    int sale_date_end;
+    char station_name[StaionMAXLEN + 1];
+    Ptr seats;
+
+public:
+    TrainStation() = default;
+    TrainStation(const TrainInfo &src, int index_) : index(index_), sale_date_start(src.sale_date_start), sale_date_end(src.sale_date_end), seats(src.seats) {
+        strcpy(train_id, src.train_id);
+        leaving_time = src.leaving_times[index];
+        arriving_time = src.arriving_times[index];
+        price = src.prices[index];
+        strcpy(station_name, src.stations[index]);
+    }
 };
 
 constexpr int StationTrainMapT = ((4096 * 2 - 5) / (StaionMAXLEN + 1 + TrainIDMAXLEN + 1 + 4) - 2) / 2;

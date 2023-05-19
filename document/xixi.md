@@ -75,6 +75,12 @@ int seats[StationNumMAX + 1]（对应每一站的seats）
 `每一个trainID有92个SeatsDay，分别对应6/1到8/31，顺序存储在文件中`
 ### TrainStation
 trainID, int index(在bpt中对应station在该车次中的下标)
+int leaving_times[index]
+int arrving_times[index]
+int prices[index]
+sale_date_start, sale_date_end
+station_name
+Ptr seats
 ### Ticket(只在内存中用，方便query_ticket和query_transfer时处理)
 trainID, -s(char, leaving_time), -t(char, arriving_time), 
 int seat, int time, int cost, int start_date
@@ -186,6 +192,7 @@ int num, char user_id[], **int time_stamp**
 3. 优化：QueryTransfer,减少对arrive_train的重复文件读写
 4. 时间优化：CheckTrainStation中可以先比较tmp与ans，若tmp优于ans，再文件读写获取seats
 5. 优化：修改getTrain（删了）和CheckUser接口
+6. 如果queryTicket中TrainInfo target_train = train_id_info_map.FindModify(leave[i].train_id, false).second占了很多时间，可把相关信息放在TrainStation，去掉这次bpt查找
 
 # 所有文件
 ## user_map

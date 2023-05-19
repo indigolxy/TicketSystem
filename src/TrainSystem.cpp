@@ -61,7 +61,7 @@ bool TrainSystem::ReleaseTrain(const char *id) {
     train_id_info_map.FindModify(id, true, target_train);
 
     for (int i = 1; i <= stationn; ++i) {
-        TrainStation ts(id, i);
+        TrainStation ts(target_train, i);
         station_train_map.insert({target_train.stations[i], id}, ts);
     }
 
@@ -80,19 +80,19 @@ std::pair<std::pair<int, TrainInfo>, SeatsDay> TrainSystem::QueryTrain(const cha
     return {{0, target_train}, SeatsDay(target_train.seat_num, target_train.station_num)};
 }
 
-Ticket::Ticket(const TrainInfo &src, int leave_index, int arrive_index, const SeatsDay &seats, int start_d) {
-    strcpy(train_id, src.train_id);
-    strcpy(leave_station_name, src.stations[leave_index]);
-    strcpy(arrive_station_name, src.stations[arrive_index]);
+Ticket::Ticket(const TrainStation &leave, const TrainStation &arrive, const SeatsDay &seats, int start_d) {
+    strcpy(train_id, leave.train_id);
+    strcpy(leave_station_name, leave.station_name);
+    strcpy(arrive_station_name, arrive.station_name);
     start_date = start_d;
 
-    leave_station_time = src.leaving_times[leave_index];
-    arrive_station_time = src.arriving_times[arrive_index];
+    leave_station_time = leave.leaving_time;
+    arrive_station_time = arrive.arriving_time;
     time = arrive_station_time - leave_station_time;
 
-    cost = src.prices[arrive_index] - src.prices[leave_index];
-    seat = seats.seats[arrive_index - 1];
-    for (int k = leave_index; k < arrive_index; ++k) {
+    cost = arrive.price - leave.price;
+    seat = seats.seats[arrive.index - 1];
+    for (int k = leave.index; k < arrive.index; ++k) {
         if (seats.seats[k] < seat) seat = seats.seats[k];
     }
 }
@@ -162,7 +162,9 @@ sjtu::vector<Ticket> TrainSystem::QueryTicket(int d, const char *s, const char *
     int i = 0, j = 0;
     sjtu::vector<Ticket> ans;
     while (i < leave.size() && j < arrive.size()) {
-        int sign = strcmp(leave[i].train_id, arrive[j].train_id);
+        const TrainStation &leave_i = leave[i];
+        const TrainStation &arrive_j = arrive[j];
+        int sign = strcmp(leave_i.train_id, arrive_j.train_id);
         if (sign < 0) {
             ++i;
         }
@@ -170,15 +172,11 @@ sjtu::vector<Ticket> TrainSystem::QueryTicket(int d, const char *s, const char *
             ++j;
         }
         else {
-            int leave_index = leave[i].index;
-            int arrive_index = arrive[j].index;
-            if (leave_index < arrive_index) {
-                TrainInfo target_train = train_id_info_map.FindModify(leave[i].train_id, false).second;
-
-                int start_d = d - target_train.leaving_times[leave[i].index] / MinADay; // 处理成发车日期
-                if (target_train.sale_date_start <= start_d && start_d <= target_train.sale_date_end) {
-                    SeatsDay seats = seats_day_file.ReadPage(target_train.seats + start_d * sizeof(SeatsDay));
-                    Ticket tmp(target_train, leave_index, arrive_index, seats, start_d);
+            if (leave_i.index < arrive_j.index) {
+                int start_d = d - leave_i.leaving_time / MinADay; // 处理成发车日期
+                if (leave_i.sale_date_start <= start_d && start_d <= leave_i.sale_date_end) {
+                    SeatsDay seats = seats_day_file.ReadPage(leave_i.seats + start_d * sizeof(SeatsDay));
+                    Ticket tmp(leave_i, arrive_j, seats, start_d);
                     ans.push_back(tmp);
                 }
             }
@@ -208,8 +206,8 @@ std::pair<bool, std::pair<Ticket, Ticket>> TrainSystem::QueryTransfer(int d, con
     for (int i = 0; i < leave.size(); ++i) {
         TrainInfo leave_train = train_id_info_map.FindModify(leave[i].train_id, false).second;
         // leave_train实际的发车日期
-        int leave_date = d - leave_train.leaving_times[leave[i].index] / MinADay;
-        if (leave_train.sale_date_start > leave_date || leave_date > leave_train.sale_date_end) {
+        int leave_date = d - leave[i].leaving_time / MinADay;
+        if (leave[i].sale_date_start > leave_date || leave_date > leave[i].sale_date_end) {
             continue;
         }
 
