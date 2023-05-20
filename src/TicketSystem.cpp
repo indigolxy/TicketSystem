@@ -115,6 +115,7 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
     std::string cmd = res[1];
     int i = 2;
 
+    size_t res_size = res.size();
     if (cmd == "add_user") {
         String<UserNameMAXLEN> c;
         String<UserNameMAXLEN> u;
@@ -123,7 +124,6 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         String<MailAddrMAXLEN> m;
         int g;
 
-        const size_t &res_size = res.size();
         while (i < res_size) {
             if (res[i] == "-c") c = res[++i];
             else if (res[i] == "-u") u = res[++i];
@@ -143,7 +143,6 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         String<UserNameMAXLEN> u;
         String<PassWordMAXLEN> p;
 
-        const size_t &res_size = res.size();
         while (i < res_size) {
             if (res[i] == "-u") u = res[++i];
             else if (res[i] == "-p") p = res[++i];
@@ -163,7 +162,6 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         String<UserNameMAXLEN> c;
         String<UserNameMAXLEN> u;
 
-        const size_t &res_size = res.size();
         while (i < res_size) {
             if (res[i] == "-u") u = res[++i];
             else if (res[i] == "-c") c = res[++i];
@@ -182,7 +180,6 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         String<MailAddrMAXLEN> m;
         int g = -1;
 
-        const size_t &res_size = res.size();
         while (i < res_size) {
             if (res[i] == "-c") c = res[++i];
             else if (res[i] == "-u") u = res[++i];
@@ -208,7 +205,6 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         int o[StationNumMAX + 1] = {0};
         char y;
 
-        const size_t &res_size = res.size();
         while (i < res_size) {
             if (res[i] == "-i") id = res[++i];
             else if (res[i] == "-n")
@@ -272,7 +268,6 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
     else if (cmd == "query_train") {
         String<TrainIDMAXLEN> id;
         int d = 0;
-        const size_t &res_size = res.size();
         while (i < res_size)  {
             if (res[i] == "-i") id = res[++i];
             else if (res[i] == "-d")
@@ -297,7 +292,6 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         int d;
         bool p = true;
 
-        const size_t &res_size = res.size();
         while (i < res_size) {
             if (res[i] == "-s") s = res[++i];
             else if (res[i] == "-t") t = res[++i];
@@ -315,7 +309,7 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         }
         else {
             const sjtu::vector<Ticket> &tmp = train_system.QueryTicket(d, s, t, p);
-            const size_t &tmp_size = tmp.size();
+            size_t tmp_size = tmp.size();
             std::cout << tmp_size << '\n';
             for (int cnt = 0; cnt < tmp_size; ++cnt) {
                 std::cout << tmp[cnt] << '\n';
@@ -328,7 +322,6 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         int d;
         bool p = true;
 
-        const size_t &res_size = res.size();
         while (i < res_size) {
             if (res[i] == "-s") s = res[++i];
             else if (res[i] == "-t") t = res[++i];
@@ -358,7 +351,6 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         String<StaionMAXLEN> t;
         bool q = false;
 
-        const size_t &res_size = res.size();
         while (i < res_size) {
             if (res[i] == "-u") u = res[++i];
             else if (res[i] == "-i") id = res[++i];
@@ -404,7 +396,6 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         String<UserNameMAXLEN> u;
         int n = 1;
 
-        const size_t &res_size = res.size();
         while (i < res_size) {
             if (res[i] == "-u") u = res[++i];
             else if (res[i] == "-n") {

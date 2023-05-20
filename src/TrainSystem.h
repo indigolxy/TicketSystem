@@ -149,7 +149,7 @@ private:
     FileSystem<SeatsDay, 1000> seats_day_file;
 
     static bool TrainStationCmp(const std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>> &a, const std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>> &b) {
-        return a.first.data < b.first.data;
+        return a.first < b.first;
     }
 
     static bool TicketCmp(const Ticket &a, const Ticket &b, bool key_is_time);
