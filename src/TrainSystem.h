@@ -105,7 +105,7 @@ private:
 
 public:
     TrainInfo() = default;
-    std::string PrintTrain(const SeatsDay &seats_day, int start_day);
+    std::string PrintTrain(const SeatsDay &seats_day, int start_day) const ;
 };
 
 class TrainStation {

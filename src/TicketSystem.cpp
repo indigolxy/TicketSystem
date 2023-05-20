@@ -17,7 +17,7 @@ void TicketSystem::CheckOrder(const WaitingOrder &order, SeatsDay &seats) {
 
 int TicketSystem::BuyTicket(const char *u, const char *id, int d, const char *f, const char *t, int n, bool can_wait, int time_stamp) {
     if (!user_system.CheckUser(u)) return -1;
-    std::pair<bool, TrainInfo> target_train = train_system.train_id_info_map.FindModify(id, false);
+    const std::pair<bool, TrainInfo> &target_train = train_system.train_id_info_map.FindModify(id, false);
     if (!target_train.first || !target_train.second.released) return -1;
 
     const TrainInfo &train = target_train.second;
@@ -75,7 +75,7 @@ std::pair<bool, sjtu::vector<Order>> TicketSystem::QueryOrder(const char *u) {
 
 bool TicketSystem::RefundTicket(const char *u, int n) {
     if (!user_system.CheckUser(u)) return false;
-    sjtu::vector<Order> orders = order_map.find({u, 0}, OrderMapCmp);
+    const sjtu::vector<Order> &orders = order_map.find({u, 0}, OrderMapCmp);
     int index = orders.size() - n;
     if (index < 0) return false;
 
@@ -228,7 +228,7 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
             ++i;
         }
 
-        std::pair<bool, UserInfo> user = user_system.ModifyProfile(c, u, _p, _n, _m, g);
+        const std::pair<bool, UserInfo> &user = user_system.ModifyProfile(c, u, _p, _n, _m, g);
         if (!user.first) std::cout << "-1\n";
         else std::cout << user.second;
     }
@@ -326,7 +326,7 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
             std::cout << "-1\n";
         }
         else {
-            std::pair<std::pair<int, TrainInfo>, SeatsDay> tmp = train_system.QueryTrain(id, d);
+            const std::pair<std::pair<int, TrainInfo>, SeatsDay> &tmp = train_system.QueryTrain(id, d);
             if (tmp.first.first == -1) std::cout << "-1\n";
             else {
                 std::cout << tmp.first.second.PrintTrain(tmp.second, d);
@@ -360,7 +360,7 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
             std::cout << "0\n";
         }
         else {
-            sjtu::vector<Ticket> tmp = train_system.QueryTicket(d, s, t, p);
+            const sjtu::vector<Ticket> &tmp = train_system.QueryTicket(d, s, t, p);
             const size_t &tmp_size = tmp.size();
             std::cout << tmp_size << '\n';
             for (int cnt = 0; cnt < tmp_size; ++cnt) {
@@ -395,7 +395,7 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
             std::cout << "0\n";
         }
         else {
-            std::pair<bool, std::pair<Ticket, Ticket>> tmp = train_system.QueryTransfer(d, s, t, p);
+            const std::pair<bool, std::pair<Ticket, Ticket>> &tmp = train_system.QueryTransfer(d, s, t, p);
             if (!tmp.first) std::cout << "0\n";
             else std::cout << tmp.second.first << '\n' << tmp.second.second << '\n';
         }
@@ -445,7 +445,7 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         char u[UserNameMAXLEN + 1] = {0};
         Command::StringToChar(u, res[++i]);
 
-        std::pair<bool, sjtu::vector<Order>> tmp = QueryOrder(u);
+        const std::pair<bool, sjtu::vector<Order>> &tmp = QueryOrder(u);
         if (!tmp.first) std::cout << "-1\n";
         else {
             const size_t &tmp_size = tmp.second.size();

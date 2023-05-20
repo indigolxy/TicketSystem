@@ -224,3 +224,7 @@ buy_ticket(1), refund_ticket(2 + waiting_num)
 file: SeatsDay
 ### usage
 release_train(93), query_train(1), query_ticket(目前最优的所有方案), query_transfer(最优方案 * 2)
+
+# todo
+把char数组都改成自己的string类
+优化内存占用
