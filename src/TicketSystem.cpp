@@ -15,7 +15,7 @@ void TicketSystem::CheckOrder(const WaitingOrder &order, SeatsDay &seats) {
     order_map.FindModify({order.user_name, order.time_stamp}, true, tmp);
 }
 
-int TicketSystem::BuyTicket(const char *u, const char *id, int d, const char *f, const char *t, int n, bool can_wait, int time_stamp) {
+int TicketSystem::BuyTicket(const String<UserNameMAXLEN> &u, const String<TrainIDMAXLEN> &id, int d, const String<StaionMAXLEN> &f, const String<StaionMAXLEN> &t, int n, bool can_wait, int time_stamp) {
     if (!user_system.CheckUser(u)) return -1;
     const std::pair<bool, TrainInfo> &target_train = train_system.train_id_info_map.FindModify(id, false);
     if (!target_train.first || !target_train.second.released) return -1;
@@ -24,10 +24,10 @@ int TicketSystem::BuyTicket(const char *u, const char *id, int d, const char *f,
     if (n > train.seat_num) return -1; // 购买票数超过总座位数，购票失败
     int leave_index = 0, arrive_index = 0;
     for (int i = 1; i <= train.station_num; ++i) {
-        if (strcmp(f, train.stations[i]) == 0) {
+        if (f == train.stations[i]) {
             leave_index = i;
         }
-        else if (strcmp(t, train.stations[i]) == 0) {
+        else if (t == train.stations[i]) {
             arrive_index = i;
             break;
         }
@@ -68,12 +68,12 @@ int TicketSystem::BuyTicket(const char *u, const char *id, int d, const char *f,
     return 0;
 }
 
-std::pair<bool, sjtu::vector<Order>> TicketSystem::QueryOrder(const char *u) {
+std::pair<bool, sjtu::vector<Order>> TicketSystem::QueryOrder(const String<UserNameMAXLEN> &u) {
     if (!user_system.CheckUser(u)) return {false, {}};
     return {true, order_map.find({u, 0}, OrderMapCmp)};
 }
 
-bool TicketSystem::RefundTicket(const char *u, int n) {
+bool TicketSystem::RefundTicket(const String<UserNameMAXLEN> &u, int n) {
     if (!user_system.CheckUser(u)) return false;
     const sjtu::vector<Order> &orders = order_map.find({u, 0}, OrderMapCmp);
     int index = orders.size() - n;
@@ -116,30 +116,20 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
     int i = 2;
 
     if (cmd == "add_user") {
-        char c[UserNameMAXLEN + 1] = {0};
-        char u[UserNameMAXLEN + 1] = {0};
-        char p[PassWordMAXLEN + 1] = {0};
-        char n[NameMAXLEN + 1] = {0};
-        char m[MailAddrMAXLEN + 1] = {0};
+        String<UserNameMAXLEN> c;
+        String<UserNameMAXLEN> u;
+        String<PassWordMAXLEN> p;
+        String<NameMAXLEN> n;
+        String<MailAddrMAXLEN> m;
         int g;
 
         const size_t &res_size = res.size();
         while (i < res_size) {
-            if (res[i] == "-c") {
-                Command::StringToChar(c, res[++i]);
-            }
-            else if (res[i] == "-u") {
-                Command::StringToChar(u, res[++i]);
-            }
-            else if (res[i] == "-p"){
-                Command::StringToChar(p, res[++i]);
-            }
-            else if (res[i] == "-n") {
-                Command::StringToChar(n, res[++i]);
-            }
-            else if (res[i] == "-m") {
-                Command::StringToChar(m, res[++i]);
-            }
+            if (res[i] == "-c") c = res[++i];
+            else if (res[i] == "-u") u = res[++i];
+            else if (res[i] == "-p") p = res[++i];
+            else if (res[i] == "-n") n = res[++i];
+            else if (res[i] == "-m") m = res[++i];
             else if (res[i] == "-g") {
                 g = Command::StringToInt(res[++i]);
             }
@@ -150,17 +140,13 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         else std::cout << "-1\n";
     }
     else if (cmd == "login") {
-        char u[UserNameMAXLEN + 1] = {0};
-        char p[PassWordMAXLEN + 1] = {0};
+        String<UserNameMAXLEN> u;
+        String<PassWordMAXLEN> p;
 
         const size_t &res_size = res.size();
         while (i < res_size) {
-            if (res[i] == "-u") {
-                Command::StringToChar(u, res[++i]);
-            }
-            else if (res[i] == "-p"){
-                Command::StringToChar(p, res[++i]);
-            }
+            if (res[i] == "-u") u = res[++i];
+            else if (res[i] == "-p") p = res[++i];
             ++i;
         }
 
@@ -168,73 +154,54 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         else std::cout << "-1\n";
     }
     else if (cmd == "logout") {
-        char u[UserNameMAXLEN + 1] = {0};
-        Command::StringToChar(u, res[++i]);
+        String<UserNameMAXLEN> u(res[++i]);
 
         if (user_system.Logout(u)) std::cout << "0\n";
         else std::cout << "-1\n";
     }
     else if (cmd == "query_profile") {
-        char c[UserNameMAXLEN + 1] = {0};
-        char u[UserNameMAXLEN + 1] = {0};
+        String<UserNameMAXLEN> c;
+        String<UserNameMAXLEN> u;
 
         const size_t &res_size = res.size();
         while (i < res_size) {
-            if (res[i] == "-u") {
-                Command::StringToChar(u, res[++i]);
-            }
-            else if (res[i] == "-c"){
-                Command::StringToChar(c, res[++i]);
-            }
+            if (res[i] == "-u") u = res[++i];
+            else if (res[i] == "-c") c = res[++i];
             ++i;
         }
 
-        std::pair<bool, UserInfo> user = user_system.QueryProfile(c, u);
+        const std::pair<bool, UserInfo> &user = user_system.QueryProfile(c, u);
         if (!user.first) std::cout << "-1\n";
         else std::cout << user.second;
     }
     else if (cmd == "modify_profile") {
-        char c[UserNameMAXLEN + 1] = {0};
-        char u[UserNameMAXLEN + 1] = {0};
-        char p[PassWordMAXLEN + 1] = {0};
-        char n[NameMAXLEN + 1] = {0};
-        char m[MailAddrMAXLEN + 1] = {0};
+        String<UserNameMAXLEN> c;
+        String<UserNameMAXLEN> u;
+        String<PassWordMAXLEN> p;
+        String<NameMAXLEN> n;
+        String<MailAddrMAXLEN> m;
         int g = -1;
-        char *_p = nullptr, *_n = nullptr, *_m = nullptr;
 
         const size_t &res_size = res.size();
         while (i < res_size) {
-            if (res[i] == "-c") {
-                Command::StringToChar(c, res[++i]);
-            }
-            else if (res[i] == "-u") {
-                Command::StringToChar(u, res[++i]);
-            }
-            else if (res[i] == "-p"){
-                Command::StringToChar(p, res[++i]);
-                _p = p;
-            }
-            else if (res[i] == "-n") {
-                Command::StringToChar(n, res[++i]);
-                _n = n;
-            }
-            else if (res[i] == "-m") {
-                Command::StringToChar(m, res[++i]);
-                _m = m;
-            }
+            if (res[i] == "-c") c = res[++i];
+            else if (res[i] == "-u") u = res[++i];
+            else if (res[i] == "-p") p = res[++i];
+            else if (res[i] == "-n") n = res[++i];
+            else if (res[i] == "-m") m = res[++i];
             else if (res[i] == "-g") {
                 g = Command::StringToInt(res[++i]);
             }
             ++i;
         }
 
-        const std::pair<bool, UserInfo> &user = user_system.ModifyProfile(c, u, _p, _n, _m, g);
+        const std::pair<bool, UserInfo> &user = user_system.ModifyProfile(c, u, p, n, m, g);
         if (!user.first) std::cout << "-1\n";
         else std::cout << user.second;
     }
     else if (cmd == "add_train") {
-        char id[TrainIDMAXLEN + 1] = {0};
-        char s[StationNumMAX + 1][StaionMAXLEN + 1] = {0};
+        String<TrainIDMAXLEN> id;
+        String<StaionMAXLEN> s[StationNumMAX + 1];
         int p[StationNumMAX + 1] = {0};
         int n = 0, m = 0, d1 = 0, d2 = 0, x = 0;
         int t[StationNumMAX + 1] = {0};
@@ -243,19 +210,15 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
 
         const size_t &res_size = res.size();
         while (i < res_size) {
-            if (res[i] == "-i") {
-                Command::StringToChar(id, res[++i]);
-            }
-            else if (res[i] == "-n") {
+            if (res[i] == "-i") id = res[++i];
+            else if (res[i] == "-n")
                 n = Command::StringToInt(res[++i]);
-            }
-            else if (res[i] == "-m"){
+            else if (res[i] == "-m")
                 m = Command::StringToInt(res[++i]);
-            }
             else if (res[i] == "-s") {
                 sjtu::vector<std::string> stations = Command::GetTokens(res[++i], '|');
                 for (int cnt = 0; cnt < stations.size(); ++cnt) {
-                    Command::StringToChar(s[cnt + 1], stations[cnt]);
+                    s[cnt + 1] = stations[cnt];
                 }
             }
             else if (res[i] == "-p") {
@@ -297,28 +260,23 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         else std::cout << "-1\n";
     }
     else if (cmd == "delete_train") {
-        char id[TrainIDMAXLEN + 1] = {0};
-        Command::StringToChar(id, res[++i]);
+        String<TrainIDMAXLEN> id(res[++i]);
         if (train_system.DeleteTrain(id)) std::cout << "0\n";
         else std::cout << "-1\n";
     }
     else if (cmd == "release_train") {
-        char id[TrainIDMAXLEN + 1] = {0};
-        Command::StringToChar(id, res[++i]);
+        String<TrainIDMAXLEN> id(res[++i]);
         if (train_system.ReleaseTrain(id)) std::cout << "0\n";
         else std::cout << "-1\n";
     }
     else if (cmd == "query_train") {
-        char id[TrainIDMAXLEN + 1] = {0};
+        String<TrainIDMAXLEN> id;
         int d = 0;
         const size_t &res_size = res.size();
         while (i < res_size)  {
-            if (res[i] == "-i") {
-                Command::StringToChar(id, res[++i]);
-            }
-            else if (res[i] == "-d") {
+            if (res[i] == "-i") id = res[++i];
+            else if (res[i] == "-d")
                 d = Command::DateToInt(res[++i]);
-            }
             ++i;
         }
 
@@ -334,19 +292,15 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         }
     }
     else if (cmd == "query_ticket") {
-        char s[StaionMAXLEN + 1] = {0};
-        char t[StaionMAXLEN + 1] = {0};
+        String<StaionMAXLEN> s;
+        String<StaionMAXLEN> t;
         int d;
         bool p = true;
 
         const size_t &res_size = res.size();
         while (i < res_size) {
-            if (res[i] == "-s") {
-                Command::StringToChar(s, res[++i]);
-            }
-            else if (res[i] == "-t") {
-                Command::StringToChar(t, res[++i]);
-            }
+            if (res[i] == "-s") s = res[++i];
+            else if (res[i] == "-t") t = res[++i];
             else if (res[i] == "-d") {
                 d = Command::DateToInt(res[++i]);
             }
@@ -369,19 +323,15 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         }
     }
     else if (cmd == "query_transfer") {
-        char s[StaionMAXLEN + 1] = {0};
-        char t[StaionMAXLEN + 1] = {0};
+        String<StaionMAXLEN> s;
+        String<StaionMAXLEN> t;
         int d;
         bool p = true;
 
         const size_t &res_size = res.size();
         while (i < res_size) {
-            if (res[i] == "-s") {
-                Command::StringToChar(s, res[++i]);
-            }
-            else if (res[i] == "-t") {
-                Command::StringToChar(t, res[++i]);
-            }
+            if (res[i] == "-s") s = res[++i];
+            else if (res[i] == "-t") t = res[++i];
             else if (res[i] == "-d") {
                 d = Command::DateToInt(res[++i]);
             }
@@ -401,21 +351,17 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         }
     }
     else if (cmd == "buy_ticket") {
-        char u[UserNameMAXLEN + 1] = {0};
-        char id[TrainIDMAXLEN + 1] = {0};
+        String<UserNameMAXLEN> u;
+        String<TrainIDMAXLEN> id;
         int d, n;
-        char f[StaionMAXLEN + 1] = {0};
-        char t[StaionMAXLEN + 1] = {0};
+        String<StaionMAXLEN> f;
+        String<StaionMAXLEN> t;
         bool q = false;
 
         const size_t &res_size = res.size();
         while (i < res_size) {
-            if (res[i] == "-u") {
-                Command::StringToChar(u, res[++i]);
-            }
-            else if (res[i] == "-i") {
-                Command::StringToChar(id, res[++i]);
-            }
+            if (res[i] == "-u") u = res[++i];
+            else if (res[i] == "-i") id = res[++i];
             else if (res[i] == "-d") {
                 d = Command::DateToInt(res[++i]);
             }
@@ -423,10 +369,10 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
                 n = Command::StringToInt(res[++i]);
             }
             else if (res[i] == "-f") {
-                Command::StringToChar(f, res[++i]);
+                f = res[++i];
             }
             else if (res[i] == "-t") {
-                Command::StringToChar(t, res[++i]);
+                t = res[++i];
             }
             else if (res[i] == "-q") {
                 if (res[++i] == "true") q = true;
@@ -442,8 +388,7 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         }
     }
     else if (cmd == "query_order") {
-        char u[UserNameMAXLEN + 1] = {0};
-        Command::StringToChar(u, res[++i]);
+        String<UserNameMAXLEN> u(res[++i]);
 
         const std::pair<bool, sjtu::vector<Order>> &tmp = QueryOrder(u);
         if (!tmp.first) std::cout << "-1\n";
@@ -456,14 +401,12 @@ void TicketSystem::AcceptMsg(const std::string &src, int time_stamp) {
         }
     }
     else if (cmd == "refund_ticket") {
-        char u[UserNameMAXLEN + 1] = {0};
+        String<UserNameMAXLEN> u;
         int n = 1;
 
         const size_t &res_size = res.size();
         while (i < res_size) {
-            if (res[i] == "-u") {
-                Command::StringToChar(u, res[++i]);
-            }
+            if (res[i] == "-u") u = res[++i];
             else if (res[i] == "-n") {
                 n = Command::StringToInt(res[++i]);
             }

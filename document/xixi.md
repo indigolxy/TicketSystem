@@ -208,7 +208,7 @@ release_train(station_num), query_ticket(2), query_transfer(2)
 ## train_id_info_map(SF)
 bpt: trainID->trainInfo的bpt
 ### usage
-add_train(1), delete_train(2), release_train(2), query_train(1), query_ticket(交集中的所有train), query_transfer(找到的所有train), buy_ticket(1)
+add_train(1), delete_train(2), release_train(2), query_train(1), query_transfer(找到的所有train), buy_ticket(1)
 
 ## order_map
 bpt: {username, time_stamp}->Order

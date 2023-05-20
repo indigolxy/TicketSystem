@@ -29,12 +29,38 @@ struct String {
         }
         data[i] = '\0';
     }
+    String &operator=(const String &other) {
+        if (this == &other) return *this;
+        int i = 0;
+        for (; other.data[i] != '\0'; ++i) {
+            data[i] = other.data[i];
+        }
+        data[i] = '\0';
+        return *this;
+    }
+    String &operator=(const std::string &other) {
+        int i = 0;
+        for (; other[i] != '\0'; ++i) {
+            data[i] = other[i];
+        }
+        data[i] = '\0';
+        return *this;
+    }
     bool operator==(const String &other) const {
         int i = 0;
         while (true) {
             if (data[i] == '\0' && other.data[i] == '\0') return true;
             if (data[i] == '\0' || other.data[i] == '\0') return false;
             if (data[i] != other.data[i]) return false;
+            ++i;
+        }
+    }
+    bool operator!=(const String &other) const {
+        int i = 0;
+        while (true) {
+            if (data[i] == '\0' && other.data[i] == '\0') return false;
+            if (data[i] == '\0' || other.data[i] == '\0') return true;
+            if (data[i] != other.data[i]) return true;
             ++i;
         }
     }

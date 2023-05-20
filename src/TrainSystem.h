@@ -42,10 +42,10 @@ public:
 class Ticket {
     friend class TrainSystem;
 private:
-    char train_id[TrainIDMAXLEN + 1];
-    char leave_station_name[StaionMAXLEN + 1];
+    String<TrainIDMAXLEN> train_id;
+    String<StaionMAXLEN> leave_station_name;
     int leave_station_time; // leaving_time
-    char arrive_station_name[StaionMAXLEN + 1];
+    String<StaionMAXLEN> arrive_station_name;
     int arrive_station_time; // arriving_time
     int seat;
     int time;
@@ -90,14 +90,14 @@ class TrainInfo {
     friend class Order;
 
 private:
-    char train_id[TrainIDMAXLEN + 1];
+    String<TrainIDMAXLEN> train_id;
     int station_num;
     int seat_num;
     bool released;
     char type;
     int sale_date_start;
     int sale_date_end;
-    char stations[StationNumMAX + 1][StaionMAXLEN + 1];
+    String<StaionMAXLEN> stations[StationNumMAX + 1];
     int prices[StationNumMAX + 1];
     int arriving_times[StationNumMAX + 1];
     int leaving_times[StationNumMAX + 1];
@@ -112,31 +112,30 @@ class TrainStation {
     friend class TrainSystem;
     friend class Ticket;
 private:
-    char train_id[TrainIDMAXLEN + 1];
+    String<TrainIDMAXLEN> train_id;
     int index; // 在bpt中对应station在该车次中的下标
     int leaving_time;
     int arriving_time;
     int price;
     int sale_date_start;
     int sale_date_end;
-    char station_name[StaionMAXLEN + 1];
+    String<StaionMAXLEN> station_name;
     Ptr seats;
 
 public:
     TrainStation() = default;
-    TrainStation(const TrainInfo &src, int index_) : index(index_), sale_date_start(src.sale_date_start), sale_date_end(src.sale_date_end), seats(src.seats) {
-        strcpy(train_id, src.train_id);
+    TrainStation(const TrainInfo &src, int index_) : index(index_), sale_date_start(src.sale_date_start), sale_date_end(src.sale_date_end), seats(src.seats),
+    train_id(src.train_id), station_name(src.stations[index]){
         leaving_time = src.leaving_times[index];
         arriving_time = src.arriving_times[index];
         price = src.prices[index];
-        strcpy(station_name, src.stations[index]);
     }
 };
 
 constexpr int StationTrainMapT = ((4096 * 2 - 5) / (StaionMAXLEN + 1 + TrainIDMAXLEN + 1 + 4) - 2) / 2;
 constexpr int StationTrainMapL = ((4096 * 2 - 8) / (StaionMAXLEN + 1 + TrainIDMAXLEN + 1 + sizeof(TrainStation)) - 2) / 2;
-constexpr int StationTrainMapBN = 32;
-constexpr int StationTrainMapBL = 32; // 512K
+constexpr int StationTrainMapBN = 64;
+constexpr int StationTrainMapBL = 64; // 1024K
 constexpr int TrainIDInfoMapT = ((4096 * 4 - 5) / (TrainIDMAXLEN + 1 + 4) - 2) / 2;
 constexpr int TrainIDInfoMapL = ((4096 * 16 - 8) / (TrainIDMAXLEN + 1 + sizeof(TrainInfo)) - 2) / 2;
 constexpr int TrainIDInfoMapBN = 42;
@@ -147,10 +146,10 @@ class TrainSystem {
 private:
     BPlusTree<std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>>, TrainStation, StationTrainMapT, StationTrainMapL, StationTrainMapBN, StationTrainMapBL> station_train_map;
     BPlusTree<String<TrainIDMAXLEN>, TrainInfo, TrainIDInfoMapT, TrainIDInfoMapL, TrainIDInfoMapBN, TrainIDInfoMapBL> train_id_info_map;
-    FileSystem<SeatsDay, 150> seats_day_file;
+    FileSystem<SeatsDay, 1000> seats_day_file;
 
     static bool TrainStationCmp(const std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>> &a, const std::pair<String<StaionMAXLEN>, String<TrainIDMAXLEN>> &b) {
-        return strcmp(a.first.data, b.first.data) < 0;
+        return a.first.data < b.first.data;
     }
 
     static bool TicketCmp(const Ticket &a, const Ticket &b, bool key_is_time);
@@ -166,19 +165,19 @@ private:
 public:
     TrainSystem(const std::string &train_system);
 
-    bool AddTrain(const char *id, int n, int m, char s[StationNumMAX + 1][StaionMAXLEN + 1], int p[StationNumMAX + 1],
+    bool AddTrain(const String<TrainIDMAXLEN> &id, int n, int m, const String<StaionMAXLEN> s[StationNumMAX + 1], int p[StationNumMAX + 1],
                   int x, int t[StationNumMAX + 1], int o[StationNumMAX + 1], int d1, int d2, char y);
 
-    bool DeleteTrain(const char *id);
+    bool DeleteTrain(const String<TrainIDMAXLEN> &id);
 
-    bool ReleaseTrain(const char *id);
+    bool ReleaseTrain(const String<TrainIDMAXLEN> &id);
 
     // * 查询失败: -1  unreleased(seats == seat_num): 0 released(all parameters are used): 1
-    std::pair<std::pair<int, TrainInfo>, SeatsDay> QueryTrain(const char *id, int d);
+    std::pair<std::pair<int, TrainInfo>, SeatsDay> QueryTrain(const String<TrainIDMAXLEN> &id, int d);
 
-    sjtu::vector<Ticket> QueryTicket(int d, const char *s, const char *t, bool key_is_time);
+    sjtu::vector<Ticket> QueryTicket(int d, const String<StaionMAXLEN> &s, const String<StaionMAXLEN> &t, bool key_is_time);
 
-    std::pair<bool, std::pair<Ticket, Ticket>> QueryTransfer(int d, const char *s, const char *t, bool key_is_time);
+    std::pair<bool, std::pair<Ticket, Ticket>> QueryTransfer(int d, const String<StaionMAXLEN> &s, const String<StaionMAXLEN> &t, bool key_is_time);
 };
 
 #endif //TICKETSYSTEM_TRAINSYSTEM_H
